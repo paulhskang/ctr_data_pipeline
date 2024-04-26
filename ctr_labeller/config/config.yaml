@@ -1,0 +1,7 @@
+
+# UI
+grid: [4, 6]
+
+# SAM Predictor
+batch_size: 1000 # Data loading into memory, and inference
+

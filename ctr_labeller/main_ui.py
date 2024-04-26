@@ -32,50 +32,59 @@ NO_IMAGE_NAME = "No Image"
 class ImageSelection(tk.Frame):
     def __init__(self, root):
         tk.Frame.__init__(self, master=root)
+
+        self.image_frame = tk.Frame(self)
+        self.image_frame.grid(row=0, column=0)
+
         # Image
-        self.canvas = tk.Canvas(self)
-        self.canvas.grid(row=0, column=0)
-    
+        self.left_canvas = tk.Canvas(self.image_frame)
+        self.left_canvas.grid(row=0, column=0)
+        self.left_label = tk.Label(self.image_frame, text=NO_IMAGE_NAME, bg="skyblue")
+        self.left_label.grid(row=1, column=0, padx=10, ipadx=10, sticky="nsew")
+
+        self.right_canvas = tk.Canvas(self.image_frame)
+        self.right_canvas.grid(row=0, column=1)
+        self.right_label = tk.Label(self.image_frame, text=NO_IMAGE_NAME, bg="skyblue")
+        self.right_label.grid(row=1, column=1, padx=10, ipadx=10, sticky="nsew")
+
         blank_image = np.zeros((400, 400, 3), np.uint8)
-        self.__draw_img_impl(blank_image, scale=1)
-
-        # Context panel
-        self.context_frame = tk.Frame(self)
-        self.context_frame.grid(row=1, column=0)
-
-        ## Name label
-        self.label = tk.Label(self.context_frame, text=NO_IMAGE_NAME)
-        self.label.grid(row=0, column=0, padx=10, ipadx=10)
+        self.__draw_img_impl(self.left_canvas, blank_image, scale=1)
+        self.__draw_img_impl(self.right_canvas, blank_image, scale=1)
 
         ## Select button
         self.is_select_var = tk.BooleanVar(value=True) # Image is to be saved by default
-        self.save_img_check_button = tk.Checkbutton(self.context_frame, \
+        self.save_img_check_button = tk.Checkbutton(self, \
             text = "Save Image?", variable = self.is_select_var, \
             onvalue = True, offvalue = False, state="disabled", height=self.image_y//100)
-        self.save_img_check_button.grid(row=0, column=1, padx=10, ipadx=10)
+        self.save_img_check_button.grid(row=2, column=0, sticky="nsew")
 
-    def __draw_img_impl(self, img, scale):
+    def __draw_img_impl(self, canvas, img, scale):
         resized_cv_img = cv2.resize(img, (img.shape[1]//scale, img.shape[0]//scale)) 
         self.image_x = resized_cv_img.shape[0]
         self.image_y = resized_cv_img.shape[1]
         tk_img = ImageTk.PhotoImage(image=Image.fromarray(resized_cv_img))
-        self.canvas.image = tk_img
-        self.canvas.create_image(10, 10, anchor=tk.NW, image=tk_img)
+        canvas.image = tk_img
+        canvas.create_image(10, 10, anchor=tk.NW, image=tk_img)
 
     # In this app, images should all have the same size
-    def set_context(self, cv_img, scale, name=""):
-        self.__draw_img_impl(cv_img, scale=scale)
-        
+    def set_context(self, left_img_data, right_img_data, scale):
+        self.__draw_img_impl(self.left_canvas, left_img_data.image, scale=scale)
+        self.__draw_img_impl(self.right_canvas, right_img_data.image, scale=scale)
+
         # Dynamic changes to buttons
-        self.label.configure(text=name)
+        self.left_label.configure(text=left_img_data.name)
+        self.right_label.configure(text=right_img_data.name)
+
         self.is_select_var.set(True) # reset button
         self.save_img_check_button.configure(state="active", height=self.image_y//100)
         
-    def disable_context(self, img_x, img_y):
-        blank_image = np.zeros((img_x, img_y, 3), np.uint8)
-        self.__draw_img_impl(blank_image, scale=1)
+    def disable_context(self, img_x_size, img_y_size):
+        blank_image = np.zeros((img_x_size, img_y_size, 3), np.uint8)
+        self.__draw_img_impl(self.left_canvas, blank_image, scale=1)
+        self.__draw_img_impl(self.right_canvas, blank_image, scale=1)
 
-        self.label.configure(text=NO_IMAGE_NAME)
+        self.left_label.configure(text=NO_IMAGE_NAME)
+        self.right_label.configure(text=NO_IMAGE_NAME)
         self.is_select_var.set(True)
         self.save_img_check_button.configure(state="disabled", height=self.image_y//100)
 
@@ -83,24 +92,25 @@ class CTRLabellerApp(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
-        self.frame_padx=10
-        self.frame_pady=5
-        self.selection_num = 3
+        self.frame_padx = 10
+        self.frame_pady = 10
+        self.selection_grid_size = (3, 2)
+        self.selection_num = self.selection_grid_size[0] * self.selection_grid_size[1]
 
         self.selections = []
-        for i in range(self.selection_num):
-            selection = ImageSelection(self)
-            selection.grid(row=0, column=i, padx=self.frame_padx, pady=self.frame_pady)
-            self.selections.append(selection)
+        for i in range(self.selection_grid_size[0]):
+            for j in range(self.selection_grid_size[1]):
+                selection = ImageSelection(self)
+                selection.grid(row=i, column=j, padx=self.frame_padx, pady=self.frame_pady)
+                self.selections.append(selection)
 
         self.is_done = False
+        self.stereo_image_datas = []
 
-    def set_images(self, images, image_names):
-        self.images = images
-        self.image_names = image_names
+    def set_stereo_image_datas(self, stereo_image_datas):
+        self.stereo_image_datas = stereo_image_datas
         self.img_idx = 0
         self.is_done = self.__present_next()
-        print(self.is_done)
 
     # Return value
     # False: There is more iterations
@@ -110,11 +120,12 @@ class CTRLabellerApp(tk.Tk):
         scale = 4
 
         while(True):
-            self.selections[selection_idx].set_context(self.images[self.img_idx], scale, image_names[self.img_idx])
+            self.selections[selection_idx].set_context(
+                self.stereo_image_datas[self.img_idx].left, self.stereo_image_datas[self.img_idx].right, scale)
             self.img_idx += 1
             selection_idx += 1
             is_selection_over = selection_idx >= self.selection_num
-            is_img_idx_over = self.img_idx >= len(self.images)
+            is_img_idx_over = self.img_idx >= len(self.stereo_image_datas)
             if is_selection_over:
                 return is_img_idx_over # There is a next iteration
             
@@ -125,7 +136,6 @@ class CTRLabellerApp(tk.Tk):
             self.selections[selection_idx].disable_context(self.selections[selection_idx-1].image_x, self.selections[selection_idx-1].image_y)
             selection_idx += 1
         return True
-
 
     def __save_selections(self):
         print("Saving selections")
@@ -141,26 +151,73 @@ class CTRLabellerApp(tk.Tk):
         print("Presenting next set of images")
         self.is_done = self.__present_next()
 
-    
+from dataclasses import dataclass
+from typing import Tuple
+
+@dataclass
+class ImageData:
+    # Loading
+    image: np.ndarray
+    name: str
+
+    # After Processing
+    mask: np.ndarray = None
+
+@dataclass
+class StereoImageData:
+    left: ImageData
+    right: ImageData
+
+def load_image_data(path):
+    image_datas = []
+    for file in sorted(glob.glob(path)):
+        img = cv2.imread(file)
+        img_data = ImageData(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), file.split("/")[-1])
+        image_datas.append(img_data)
+    return np.array(image_datas)
+
+def print_stereo_names(stereo_image_datas, print_range):
+    for i in print_range:
+        print("left: {}, right: {}".format(stereo_image_datas[i].left.name, stereo_image_datas[i].right.name))
+
+def load_stereo_image_data(left_path, right_path):
+    # Test here for alot of images
+    test_large_multiplier = 1 # default is 1
+    left_image_datas = np.array([])
+    right_image_datas = np.array([])
+    for i in range(test_large_multiplier):
+        left_image_datas = np.append(left_image_datas, load_image_data(left_path))
+        right_image_datas = np.append(right_image_datas, load_image_data(right_path))
+        print(i)
+
+    assert len(left_image_datas) == len(right_image_datas)
+    stereo_image_datas = [StereoImageData(left_image_datas[i], right_image_datas[i]) \
+                                for i in range(len(left_image_datas))]
+    return stereo_image_datas
+
 if __name__ == "__main__":
     # Loading Images
-    images = []
-    image_names = []
-    for file in glob.glob("data/ctr_capture_apr_25_24/cam1_*.png"):
-        img = cv2.imread(file)
-        images.append(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-        image_names.append(file.split("/")[-1])
+
+    stereo_image_datas = load_stereo_image_data(
+        "data/ctr_capture_apr_25_24/cam1_*.png",
+        "data/ctr_capture_apr_25_24/cam2_*.png")
+
+    print("Please double check names if stereo data is properly correlated")
+    print_stereo_names(stereo_image_datas, range(len(stereo_image_datas)))
 
     # SAM Create Masks
-    print("SAM is creating masks")
+    print("SAM is creating masks ...")
 
+    print("SAM finished creating masks!")
+
+    # Start the app
     app = CTRLabellerApp()
     app.title("CTR SAM Labeller")
 
     test_range = None # None for full range
-    app.set_images(images=images[0:test_range], image_names=image_names[0:test_range])
+    app.set_stereo_image_datas(stereo_image_datas[0:test_range])
 
-    print("Number of images: ", len(images))
+    print("Number of images: ", len(stereo_image_datas))
     print("Press [n] to save and present next picture")
 
     app.bind("n", app.keypress_event)
