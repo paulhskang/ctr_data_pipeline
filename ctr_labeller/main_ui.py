@@ -37,7 +37,7 @@ class ImageSelection(tk.Frame):
         self.canvas.grid(row=0, column=0)
     
         blank_image = np.zeros((400, 400, 3), np.uint8)
-        self.__draw_img_impl(blank_image)
+        self.__draw_img_impl(blank_image, scale=1)
 
         # Context panel
         self.context_frame = tk.Frame(self)
@@ -54,21 +54,30 @@ class ImageSelection(tk.Frame):
             onvalue = True, offvalue = False, state="disabled", height=self.image_y//100)
         self.save_img_check_button.grid(row=0, column=1, padx=10, ipadx=10)
 
-    def __draw_img_impl(self, img):
-        self.image_x = img.shape[0]
-        self.image_y = img.shape[1]
-        tk_img = ImageTk.PhotoImage(image=Image.fromarray(img))
+    def __draw_img_impl(self, img, scale):
+        resized_cv_img = cv2.resize(img, (img.shape[1]//scale, img.shape[0]//scale)) 
+        self.image_x = resized_cv_img.shape[0]
+        self.image_y = resized_cv_img.shape[1]
+        tk_img = ImageTk.PhotoImage(image=Image.fromarray(resized_cv_img))
         self.canvas.image = tk_img
         self.canvas.create_image(10, 10, anchor=tk.NW, image=tk_img)
 
     # In this app, images should all have the same size
-    def draw_img(self, cv_img, scale, name=""):
-        resized_cv_img = cv2.resize(cv_img, (cv_img.shape[1]//scale, cv_img.shape[0]//scale)) 
-        self.__draw_img_impl(resized_cv_img)
+    def set_context(self, cv_img, scale, name=""):
+        self.__draw_img_impl(cv_img, scale=scale)
         
         # Dynamic changes to buttons
-        self.label.config(text=name)
+        self.label.configure(text=name)
+        self.is_select_var.set(True) # reset button
         self.save_img_check_button.configure(state="active", height=self.image_y//100)
+        
+    def disable_context(self, img_x, img_y):
+        blank_image = np.zeros((img_x, img_y, 3), np.uint8)
+        self.__draw_img_impl(blank_image, scale=1)
+
+        self.label.configure(text=NO_IMAGE_NAME)
+        self.is_select_var.set(True)
+        self.save_img_check_button.configure(state="disabled", height=self.image_y//100)
 
 class CTRLabellerApp(tk.Tk):
     def __init__(self, *args, **kwargs):
@@ -101,7 +110,7 @@ class CTRLabellerApp(tk.Tk):
         scale = 4
 
         while(True):
-            self.selections[selection_idx].draw_img(self.images[self.img_idx], scale, image_names[self.img_idx])
+            self.selections[selection_idx].set_context(self.images[self.img_idx], scale, image_names[self.img_idx])
             self.img_idx += 1
             selection_idx += 1
             is_selection_over = selection_idx >= self.selection_num
@@ -113,8 +122,7 @@ class CTRLabellerApp(tk.Tk):
                 break # To do for loop, set blank images
 
         while selection_idx < self.selection_num:
-            blank_image = np.zeros((self.selections[selection_idx-1].image_x, self.selections[selection_idx-1].image_y, 3), np.uint8)
-            self.selections[selection_idx].draw_img(blank_image, scale=1, name=NO_IMAGE_NAME)
+            self.selections[selection_idx].disable_context(self.selections[selection_idx-1].image_x, self.selections[selection_idx-1].image_y)
             selection_idx += 1
         return True
 
@@ -149,8 +157,9 @@ if __name__ == "__main__":
     app = CTRLabellerApp()
     app.title("CTR SAM Labeller")
 
-    test_range = None
+    test_range = None # None for full range
     app.set_images(images=images[0:test_range], image_names=image_names[0:test_range])
+
     print("Number of images: ", len(images))
     print("Press [n] to save and present next picture")
 
