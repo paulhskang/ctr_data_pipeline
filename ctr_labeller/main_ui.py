@@ -30,13 +30,14 @@ def show_box(box, ax):
 NO_IMAGE_NAME = "No Image"
 
 class ImageSelection(tk.Frame):
-    def __init__(self, root):
+    def __init__(self, root, draw_height_px):
         tk.Frame.__init__(self, master=root)
 
+        self.draw_height_px = draw_height_px
         self.image_frame = tk.Frame(self)
         self.image_frame.grid(row=0, column=0)
 
-        # Image
+        # Image and label
         self.left_canvas = tk.Canvas(self.image_frame)
         self.left_canvas.grid(row=0, column=0)
         self.left_label = tk.Label(self.image_frame, text=NO_IMAGE_NAME, bg="skyblue")
@@ -47,9 +48,9 @@ class ImageSelection(tk.Frame):
         self.right_label = tk.Label(self.image_frame, text=NO_IMAGE_NAME, bg="skyblue")
         self.right_label.grid(row=1, column=1, padx=10, ipadx=10, sticky="nsew")
 
-        blank_image = np.zeros((400, 400, 3), np.uint8)
-        self.__draw_img_impl(self.left_canvas, blank_image, scale=1)
-        self.__draw_img_impl(self.right_canvas, blank_image, scale=1)
+        blank_image = np.zeros((self.draw_height_px , self.draw_height_px , 3), np.uint8)
+        self.__draw_img_impl(self.left_canvas, blank_image)
+        self.__draw_img_impl(self.right_canvas, blank_image)
 
         ## Select button
         self.is_select_var = tk.BooleanVar(value=True) # Image is to be saved by default
@@ -58,8 +59,9 @@ class ImageSelection(tk.Frame):
             onvalue = True, offvalue = False, state="disabled", height=self.image_y//100)
         self.save_img_check_button.grid(row=2, column=0, sticky="nsew")
 
-    def __draw_img_impl(self, canvas, img, scale):
-        resized_cv_img = cv2.resize(img, (img.shape[1]//scale, img.shape[0]//scale)) 
+    def __draw_img_impl(self, canvas, img):
+        scale = img.shape[1]//self.draw_height_px
+        resized_cv_img = cv2.resize(img, (self.draw_height_px, img.shape[0]//scale), interpolation=cv2.INTER_LINEAR)
         self.image_x = resized_cv_img.shape[0]
         self.image_y = resized_cv_img.shape[1]
         tk_img = ImageTk.PhotoImage(image=Image.fromarray(resized_cv_img))
@@ -67,9 +69,9 @@ class ImageSelection(tk.Frame):
         canvas.create_image(10, 10, anchor=tk.NW, image=tk_img)
 
     # In this app, images should all have the same size
-    def set_context(self, left_img_data, right_img_data, scale):
-        self.__draw_img_impl(self.left_canvas, left_img_data.image, scale=scale)
-        self.__draw_img_impl(self.right_canvas, right_img_data.image, scale=scale)
+    def set_context(self, left_img_data, right_img_data):
+        self.__draw_img_impl(self.left_canvas, left_img_data.image)
+        self.__draw_img_impl(self.right_canvas, right_img_data.image)
 
         # Dynamic changes to buttons
         self.left_label.configure(text=left_img_data.name)
@@ -80,8 +82,8 @@ class ImageSelection(tk.Frame):
         
     def disable_context(self, img_x_size, img_y_size):
         blank_image = np.zeros((img_x_size, img_y_size, 3), np.uint8)
-        self.__draw_img_impl(self.left_canvas, blank_image, scale=1)
-        self.__draw_img_impl(self.right_canvas, blank_image, scale=1)
+        self.__draw_img_impl(self.left_canvas, blank_image)
+        self.__draw_img_impl(self.right_canvas, blank_image)
 
         self.left_label.configure(text=NO_IMAGE_NAME)
         self.right_label.configure(text=NO_IMAGE_NAME)
@@ -92,15 +94,17 @@ class CTRLabellerApp(tk.Tk):
     def __init__(self, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
+        # TODO, from config
         self.frame_padx = 10
         self.frame_pady = 10
         self.selection_grid_size = (3, 2)
         self.selection_num = self.selection_grid_size[0] * self.selection_grid_size[1]
+        self.selection_image_height_px = 400
 
         self.selections = []
         for i in range(self.selection_grid_size[0]):
             for j in range(self.selection_grid_size[1]):
-                selection = ImageSelection(self)
+                selection = ImageSelection(self, self.selection_image_height_px)
                 selection.grid(row=i, column=j, padx=self.frame_padx, pady=self.frame_pady)
                 self.selections.append(selection)
 
@@ -117,11 +121,10 @@ class CTRLabellerApp(tk.Tk):
     # True: The iterations are done
     def __present_next(self):
         selection_idx = 0
-        scale = 4
 
         while(True):
             self.selections[selection_idx].set_context(
-                self.stereo_image_datas[self.img_idx].left, self.stereo_image_datas[self.img_idx].right, scale)
+                self.stereo_image_datas[self.img_idx].left, self.stereo_image_datas[self.img_idx].right)
             self.img_idx += 1
             selection_idx += 1
             is_selection_over = selection_idx >= self.selection_num
@@ -195,15 +198,44 @@ def load_stereo_image_data(left_path, right_path):
                                 for i in range(len(left_image_datas))]
     return stereo_image_datas
 
-if __name__ == "__main__":
-    # Loading Images
+def debug_input(image, input_box, input_point = None):
+    plt.figure(figsize=(10,10))
+    show_box(input_box, plt.gca())
+    if input_point:
+        show_points(input_point, np.array([1]), plt.gca(), marker_size=40)
+    plt.imshow(image)
+    plt.axis('on')
 
+@dataclass
+class CTRLabellerConfig:
+    debug_inputs: bool = True
+
+if __name__ == "__main__":
+    # Config
+    config = CTRLabellerConfig()
+
+    # Loading Images
     stereo_image_datas = load_stereo_image_data(
         "data/ctr_capture_apr_25_24/cam1_*.png",
         "data/ctr_capture_apr_25_24/cam2_*.png")
 
     print("Please double check names if stereo data is properly correlated")
     print_stereo_names(stereo_image_datas, range(len(stereo_image_datas)))
+
+    # SAM Input
+    left_input_box = np.array([300, 250, 1250, 1400])
+    # left_input_point = np.array([[1400, 740]])
+    left_input_label = np.array([1])
+
+    right_input_box = np.array([400, 370, 1600, 1400])
+    # right_input_point = np.array([[1400, 740]])
+    right_input_label = np.array([1])
+
+    if config.debug_inputs:
+        img_idx = 0
+        debug_input(stereo_image_datas[img_idx].left.image, left_input_box)
+        debug_input(stereo_image_datas[img_idx].right.image, right_input_box)
+        plt.show()
 
     # SAM Create Masks
     print("SAM is creating masks ...")
