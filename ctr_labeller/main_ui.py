@@ -60,18 +60,23 @@ class ImageSelection(tk.Frame):
         self.save_img_check_button.grid(row=2, column=0, sticky="nsew")
 
     def __draw_img_impl(self, canvas, img):
-        scale = img.shape[1]//self.draw_height_px
-        resized_cv_img = cv2.resize(img, (self.draw_height_px, img.shape[0]//scale), interpolation=cv2.INTER_LINEAR)
+        scale = img.shape[1]/self.draw_height_px
+        resized_cv_img = cv2.resize(img, (self.draw_height_px, int(img.shape[0]//scale)), interpolation=cv2.INTER_LINEAR)
         self.image_x = resized_cv_img.shape[0]
         self.image_y = resized_cv_img.shape[1]
         tk_img = ImageTk.PhotoImage(image=Image.fromarray(resized_cv_img))
         canvas.image = tk_img
+        canvas.configure(width=self.image_y, height=self.image_x)
         canvas.create_image(10, 10, anchor=tk.NW, image=tk_img)
 
     # In this app, images should all have the same size
-    def set_context(self, left_img_data, right_img_data):
-        self.__draw_img_impl(self.left_canvas, left_img_data.image)
-        self.__draw_img_impl(self.right_canvas, right_img_data.image)
+    def set_context(self, left_img_data, right_img_data, use_mask):
+        if use_mask:
+            self.__draw_img_impl(self.left_canvas, left_img_data.masked_image)
+            self.__draw_img_impl(self.right_canvas, right_img_data.masked_image)
+        else:
+            self.__draw_img_impl(self.left_canvas, left_img_data.image)
+            self.__draw_img_impl(self.right_canvas, right_img_data.image)
 
         # Dynamic changes to buttons
         self.left_label.configure(text=left_img_data.name)
@@ -97,9 +102,9 @@ class CTRLabellerApp(tk.Tk):
         # TODO, from config
         self.frame_padx = 10
         self.frame_pady = 10
-        self.selection_grid_size = (3, 2)
+        self.selection_grid_size = (1, 1)
         self.selection_num = self.selection_grid_size[0] * self.selection_grid_size[1]
-        self.selection_image_height_px = 400
+        self.selection_image_height_px = 1200
 
         self.selections = []
         for i in range(self.selection_grid_size[0]):
@@ -110,9 +115,11 @@ class CTRLabellerApp(tk.Tk):
 
         self.is_done = False
         self.stereo_image_datas = []
+        self.use_mask = False
 
-    def set_stereo_image_datas(self, stereo_image_datas):
+    def set_stereo_image_datas(self, stereo_image_datas, use_mask):
         self.stereo_image_datas = stereo_image_datas
+        self.use_mask = use_mask
         self.img_idx = 0
         self.is_done = self.__present_next()
 
@@ -124,14 +131,14 @@ class CTRLabellerApp(tk.Tk):
 
         while(True):
             self.selections[selection_idx].set_context(
-                self.stereo_image_datas[self.img_idx].left, self.stereo_image_datas[self.img_idx].right)
+                self.stereo_image_datas[self.img_idx].left,
+                self.stereo_image_datas[self.img_idx].right, self.use_mask)
             self.img_idx += 1
             selection_idx += 1
             is_selection_over = selection_idx >= self.selection_num
             is_img_idx_over = self.img_idx >= len(self.stereo_image_datas)
             if is_selection_over:
                 return is_img_idx_over # There is a next iteration
-            
             if is_img_idx_over: # selection not over
                 break # To do for loop, set blank images
 
@@ -165,6 +172,7 @@ class ImageData:
 
     # After Processing
     mask: np.ndarray = None
+    masked_image: np.ndarray = None
 
 @dataclass
 class StereoImageData:
@@ -206,13 +214,25 @@ def debug_input(image, input_box, input_point = None):
     plt.imshow(image)
     plt.axis('on')
 
+def apply_mask(image, mask, random_color=False):
+    if random_color:
+        color = np.concatenate([np.random.random(3), np.array([1.0])], axis=0)
+    else:
+        color = np.array([30, 144, 255],dtype=np.uint8)
+    h, w = mask.shape[-2:]
+    mask_image = mask.reshape(h, w, 1) * color.reshape(1, 1, -1)
+    return cv2.addWeighted(image, 1.0, mask_image, 0.6, 0)
+
 @dataclass
 class CTRLabellerConfig:
     debug_inputs: bool = True
+    apply_mask: bool = True
 
 if __name__ == "__main__":
     # Config
     config = CTRLabellerConfig()
+    config.debug_inputs = False
+    config.apply_mask = True
 
     # Loading Images
     stereo_image_datas = load_stereo_image_data(
@@ -223,14 +243,14 @@ if __name__ == "__main__":
     print_stereo_names(stereo_image_datas, range(len(stereo_image_datas)))
 
     # SAM Input
-    left_input_box = np.array([300, 250, 1250, 1400])
-    # left_input_point = np.array([[1400, 740]])
+    left_input_box = np.array([300, 500, 1600, 1400])
+    left_input_point = np.array([[710, 260]])
     left_input_label = np.array([1])
 
-    right_input_box = np.array([400, 370, 1600, 1400])
-    # right_input_point = np.array([[1400, 740]])
+    right_input_box = np.array([500, 600, 1500, 1400])
+    right_input_point = np.array([[1129, 400]])
     right_input_label = np.array([1])
-
+    
     if config.debug_inputs:
         img_idx = 0
         debug_input(stereo_image_datas[img_idx].left.image, left_input_box)
@@ -238,16 +258,45 @@ if __name__ == "__main__":
         plt.show()
 
     # SAM Create Masks
-    print("SAM is creating masks ...")
+    if config.apply_mask:
+        # load SAM checkpoint and parameters
+        import sys
+        sys.path.append("..")
+        from segment_anything import sam_model_registry, SamPredictor
+        sam_checkpoint = "sam_vit_h_4b8939.pth"
+        model_type = "vit_h"
+        device = "cuda"
+        sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+        sam.to(device=device)
+        predictor = SamPredictor(sam)
 
-    print("SAM finished creating masks!")
+        print("SAM is creating masks ...")
+        for stereo_image_data in stereo_image_datas:
+            predictor.set_image(stereo_image_data.left.image)
+            stereo_image_data.left.mask, _, _ = predictor.predict(
+                point_coords=left_input_point,
+                point_labels=left_input_label,
+                box=left_input_box[None, :],
+                multimask_output=False)
+            stereo_image_data.left.masked_image = apply_mask(
+                stereo_image_data.left.image, stereo_image_data.left.mask)
+            predictor.set_image(stereo_image_data.right.image)
+            stereo_image_data.right.mask, _, _ = predictor.predict(
+                point_coords=right_input_point,
+                point_labels=right_input_label,
+                box=right_input_box[None, :],
+                multimask_output=False)
+            stereo_image_data.right.masked_image = apply_mask(
+                stereo_image_data.right.image, stereo_image_data.right.mask)
+
+        print("SAM finished creating masks!")
 
     # Start the app
     app = CTRLabellerApp()
     app.title("CTR SAM Labeller")
 
     test_range = None # None for full range
-    app.set_stereo_image_datas(stereo_image_datas[0:test_range])
+    app.set_stereo_image_datas(stereo_image_datas[0:test_range], use_mask=config.apply_mask)
 
     print("Number of images: ", len(stereo_image_datas))
     print("Press [n] to save and present next picture")
