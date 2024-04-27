@@ -26,7 +26,6 @@ def show_box(box, ax):
     w, h = box[2] - box[0], box[3] - box[1]
     ax.add_patch(plt.Rectangle((x0, y0), w, h, edgecolor='green', facecolor=(0,0,0,0), lw=2))
 
-
 def debug_input(image, input_box, input_point = None):
     plt.figure(figsize=(10,10))
     show_box(input_box, plt.gca())
@@ -35,54 +34,67 @@ def debug_input(image, input_box, input_point = None):
     plt.imshow(image)
     plt.axis('on')
 
-
-
 @dataclass
 class CTRLabellerConfig:
     debug_inputs: bool = True
     apply_mask: bool = True
+    test_num: int = None
 
 if __name__ == "__main__":
     # Config
     config = CTRLabellerConfig()
     config.debug_inputs = False
     config.apply_mask = True
+    # config.test_num = 4 # Set to None, for all
 
     # Loading Images
     stereo_image_data = load_stereo_image_data(
         "data/ctr_capture_apr_25_24/cam1_*.png",
-        "data/ctr_capture_apr_25_24/cam2_*.png")
+        "data/ctr_capture_apr_25_24/cam2_*.png", config.test_num)
 
     print("Please double check names if stereo data is properly correlated")
     print_stereo_names(stereo_image_data, range(len(stereo_image_data.left)))
 
     # SAM Input
-    left_input_prompts = [
-        {
-            "name": "one",
-            "box": np.array([300, 500, 1600, 1400]),
-            "point_coords": np.array([[710, 260]]),
-            "point_labels": np.array([1])
-        }
-    ]
-
-    right_input_prompts = [
-        {
-            "name": "one",
-            "box": np.array([500, 600, 1500, 1400]),
-            "point_coords": np.array([[1129, 400]]),
-            "point_labels": np.array([1])
-        }
-    ]
     
-    if config.debug_inputs:
-        img_idx = 0
-        debug_input(stereo_image_data[img_idx].left.image, left_input_box)
-        debug_input(stereo_image_data[img_idx].right.image, right_input_box)
-        plt.show()
+    # TODO, another gui for clicking points and boxes and save as prompts
+    # if config.debug_inputs: 
+    #     img_idx = 0
+    #     debug_input(stereo_image_data[img_idx].left.image, left_input_box)
+    #     debug_input(stereo_image_data[img_idx].right.image, right_input_box)
+    #     plt.show()
 
     # SAM Create Masks
     if config.apply_mask:
+        left_input_prompts = [
+            {
+                "name": "box_and_point",
+                "box": np.array([300, 500, 1600, 1400]),
+                "point_coords": np.array([[710, 260]]),
+                "point_labels": np.array([1])
+            },
+            {
+                "name": "point",
+                "box": None,
+                "point_coords": np.array([[710, 260]]),
+                "point_labels": np.array([1])
+            }
+        ]
+
+        right_input_prompts = [
+            {
+                "name": "box_and_point",
+                "box": np.array([500, 600, 1500, 1400]),
+                "point_coords": np.array([[1129, 400]]),
+                "point_labels": np.array([1])
+            },
+            {
+                "name": "point",
+                "box": None,
+                "point_coords": np.array([[1129, 400]]),
+                "point_labels": np.array([1])
+            }
+        ]
         predictor = SAMBatchedPredictor()
         print("SAM is creating masks ...")
         predictor.predict(stereo_image_data.left, left_input_prompts)
@@ -93,7 +105,7 @@ if __name__ == "__main__":
     app = CTRLabellerApp()
     app.title("CTR SAM Labeller")
 
-    app.set_stereo_image_data(stereo_image_data, use_mask=config.apply_mask)
+    app.set_stereo_image_data(stereo_image_data)
 
     print("Press [n] to save and present next picture")
 

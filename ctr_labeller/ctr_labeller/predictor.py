@@ -51,4 +51,4 @@ class SAMBatchedPredictor:
                     box=input_prompt["box"],
                     multimask_output=False)
                 image_data.prediction_outputs.append(PredictionOutput(input_prompt["name"], mask, apply_mask(image_data.image, mask), score))
-    
+            image_data.current_mask_idx = 0
