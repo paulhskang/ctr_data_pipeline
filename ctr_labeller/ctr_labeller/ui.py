@@ -1,17 +1,18 @@
-import numpy as np
+import copy
 import cv2
-import tkinter as tk
 from dataclasses import dataclass
+import numpy as np
+import tkinter as tk
 from typing import Tuple
-
 from PIL import ImageTk, Image
 
 NO_IMAGE_NAME = "No Image"
 NO_MASK_NAME = "No Mask"
 class ImageSelection(tk.Frame):
-    def __init__(self, root, draw_height_px):
+    def __init__(self, root, draw_height_px, visualize_input_prompt = False):
         tk.Frame.__init__(self, master=root)
 
+        self.visualize_input_prompt = visualize_input_prompt
         self.canvas = tk.Canvas(self)
         self.canvas.grid(row=0, column=0)
 
@@ -45,10 +46,28 @@ class ImageSelection(tk.Frame):
         self.canvas.configure(width=self.image_y, height=self.image_x)
         self.canvas.create_image(10, 10, anchor=tk.NW, image=tk_img)
 
+    def __draw_img_impl_with_input_prompt(self, img, input_prompt = None):
+        prompted_img = copy.deepcopy(img)
+        if self.visualize_input_prompt and input_prompt:
+            if input_prompt["box"] is not None:
+                box_prompt = input_prompt["box"]
+                cv2.rectangle(prompted_img,
+                              (box_prompt[0], box_prompt[1]), (box_prompt[2], box_prompt[3]),
+                              color=(0, 255, 0), thickness=2)
+            if input_prompt["point_coords"] is not None:
+                point_coord = input_prompt["point_coords"][0]
+                cv2.drawMarker(prompted_img,
+                               (point_coord[0], point_coord[1]), color=(0, 255, 0), markerType=cv2.MARKER_DIAMOND,
+                               markerSize=20, thickness=2, line_type=cv2.LINE_AA)
+        self.__draw_img_impl(prompted_img)
+
     def set_context(self, image_data):
         self.image_data = image_data
         if len(image_data.prediction_outputs) >= 1:
-            self.__draw_img_impl(image_data.prediction_outputs[image_data.current_mask_idx].masked_image)
+            pred_output = image_data.prediction_outputs[image_data.current_mask_idx]
+            self.__draw_img_impl_with_input_prompt(
+                pred_output.masked_image,
+                pred_output.input_prompt)
             self.toggle_button.configure(state="active")
             self.mask_label.configure(text="Mask: {}".format(
                 image_data.prediction_outputs[image_data.current_mask_idx].input_prompt["name"]))
@@ -68,21 +87,26 @@ class ImageSelection(tk.Frame):
     def toggle_mask(self):
         if len(self.image_data.prediction_outputs) >= 1:
             self.image_data.current_mask_idx = (self.image_data.current_mask_idx + 1) % len(self.image_data.prediction_outputs)
-            self.__draw_img_impl(self.image_data.prediction_outputs[self.image_data.current_mask_idx].masked_image)
+            pred_output = self.image_data.prediction_outputs[self.image_data.current_mask_idx]
+            self.__draw_img_impl_with_input_prompt(
+                pred_output.masked_image,
+                pred_output.input_prompt)
             self.mask_label.configure(text="Mask: {}".format(
                 self.image_data.prediction_outputs[self.image_data.current_mask_idx].input_prompt["name"]))
 
 class StereoImageSelection(tk.Frame):
-    def __init__(self, root, draw_height_px):
+    def __init__(self, root, draw_height_px, visualize_input_prompt = False):
         tk.Frame.__init__(self, master=root)
 
         self.image_frame = tk.Frame(self)
         self.image_frame.grid(row=0, column=0)
 
         # Image and label
-        self.left_image_selection = ImageSelection(self.image_frame, draw_height_px)
+        self.left_image_selection = ImageSelection(self.image_frame,
+                                                   draw_height_px, visualize_input_prompt)
         self.left_image_selection.grid(row=0, column=0)
-        self.right_image_selection = ImageSelection(self.image_frame, draw_height_px)
+        self.right_image_selection = ImageSelection(self.image_frame,
+                                                    draw_height_px, visualize_input_prompt)
         self.right_image_selection.grid(row=0, column=1)
 
         ## Select button
@@ -125,7 +149,8 @@ class CTRLabellerApp(tk.Tk):
         self.selections = []
         for i in range(self.config.selection_grid_size[0]):
             for j in range(self.config.selection_grid_size[1]):
-                selection = StereoImageSelection(self, self.config.selection_image_height_px)
+                selection = StereoImageSelection(
+                    self, self.config.selection_image_height_px, self.config.visualize_input_prompt)
                 selection.grid(row=i, column=j, padx=self.config.frame_padx, pady=self.config.frame_pady)
                 self.selections.append(selection)
 
@@ -159,7 +184,8 @@ class CTRLabellerApp(tk.Tk):
                 break # To do for loop, set blank images
 
         while selection_idx < self.selection_num:
-            self.selections[selection_idx].disable_context(self.selections[selection_idx-1].image_x, self.selections[selection_idx-1].image_y)
+            self.selections[selection_idx].disable_context(
+                self.selections[selection_idx-1].image_x, self.selections[selection_idx-1].image_y)
             selection_idx += 1
         return True
 
