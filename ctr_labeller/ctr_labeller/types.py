@@ -26,7 +26,7 @@ class StereoImageData:
     left: List[ImageData] = None
     right: List[ImageData] = None
 
-def load_image_data(path, test_num = None):
+def load_image_data(path, test_num = -1):
     image_datas = []
 
     counter = 0
@@ -35,7 +35,7 @@ def load_image_data(path, test_num = None):
         img_data = ImageData(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), file.split("/")[-1])
         image_datas.append(img_data)
         counter += 1
-        if test_num is not None and counter >= test_num:
+        if test_num > 0 and counter >= test_num:
             break
     
     return image_datas

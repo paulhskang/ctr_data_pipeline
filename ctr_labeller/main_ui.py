@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from ctr_labeller.types import load_stereo_image_data, print_stereo_names
 from ctr_labeller.ui import CTRLabellerApp, CTRLabellerAppConfig
 from ctr_labeller.predictor import SAMBatchedPredictor
+from ctr_labeller.config.utils import parse_config, configure, autoconfig
 
 def show_mask(mask, ax, random_color=False):
     if random_color:
@@ -34,29 +35,17 @@ def debug_input(image, input_box, input_point = None):
     plt.imshow(image)
     plt.axis('on')
 
-@dataclass
+@configure
 class CTRLabellerConfig:
     app_config: CTRLabellerAppConfig
     debug_inputs: bool = True
     apply_mask: bool = True
-    test_num: int = None
+    test_num: int = -1
     sort_based_on: str = "None"
 
 if __name__ == "__main__":
     # Config
-
-    app_config =  CTRLabellerAppConfig()
-    app_config.visualize_input_prompt = True
-    app_config.selection_grid_size = (1, 1)
-    app_config.selection_image_height_px = 1200
-    app_config.frame_padx = 10
-    app_config.frame_pady = 10
-
-    config = CTRLabellerConfig(app_config=app_config)
-    config.debug_inputs = False
-    config.apply_mask = True
-    config.test_num = 2 # Set to None, for all
-    config.sort_based_on = "highest_score"
+    config = parse_config(CTRLabellerConfig, yaml_arg='--config')
 
     # Loading Images
     stereo_image_data = load_stereo_image_data(

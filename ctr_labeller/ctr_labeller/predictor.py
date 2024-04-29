@@ -44,7 +44,7 @@ class SAMBatchedPredictor:
         image_pixel_num = image_datas[0].image.shape[0] * image_datas[0].image.shape[1]
         for image_data in image_datas:
             self.predictor.set_image(image_data.image)
-            print("image", image_data.name)
+            # print("image", image_data.name)
             for input_prompt in input_prompts:
                 mask, score, _ = self.predictor.predict(
                     point_coords=input_prompt["point_coords"],
@@ -56,10 +56,10 @@ class SAMBatchedPredictor:
                         input_prompt,
                         mask=mask,
                         masked_image=apply_mask(image_data.image, mask),
-                        score=score,
+                        score=score[0],
                         area_ratio=area_ratio)
                 image_data.prediction_outputs.append(prediction_output)
-                print("input_prompt: {}, score {}".format(prediction_output.input_prompt["name"], prediction_output.score))
+                # print("input_prompt: {}, score {}".format(prediction_output.input_prompt["name"], prediction_output.score))
             # Sorting
             if self.sort_based_on == "highest_score":
                 image_data.prediction_outputs = sorted(image_data.prediction_outputs, key=operator.attrgetter('score'), reverse=True)

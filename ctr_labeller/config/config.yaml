@@ -1,7 +1,15 @@
+app_config:
+  visualize_input_prompt: True
+  selection_grid_size:  [1, 1]
+  selection_image_height_px: 1200
+  frame_padx: 10
+  frame_pady: 10
 
-# UI
-grid: [4, 6]
+debug_inputs: False
+apply_mask: True
+test_num: -1 # Set to -1, for all
+sort_based_on: "highest_score"
 
 # SAM Predictor
-batch_size: 1000 # Data loading into memory, and inference
+# batch_size: 1000 # Data loading into memory, and inference
 

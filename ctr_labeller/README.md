@@ -9,6 +9,11 @@ Download the model by putting in your browser: `https://dl.fbaipublicfiles.com/s
 paste model here. 
 
 
+For configuring yaml code taken from kaolin-wisp
+```bash
+pip install docstring_parser hydra-zen tyro
+```
+
 # Download Dataset
 
 Automatic download doesn't work for now. Download manually and put in structure:
@@ -25,5 +30,7 @@ Automatic download doesn't work for now. Download manually and put in structure:
 
 # Run
 
-run `main.py`
+```bash
+python3 main_ui.py --config config/config.yaml
+```
 

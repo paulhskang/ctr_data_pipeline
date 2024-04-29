@@ -6,6 +6,8 @@ import tkinter as tk
 from typing import Tuple
 from PIL import ImageTk, Image
 
+from ctr_labeller.config.utils import configure
+
 NO_IMAGE_NAME = "No Image"
 NO_MASK_NAME = "No Mask"
 class ImageSelection(tk.Frame):
@@ -69,8 +71,10 @@ class ImageSelection(tk.Frame):
                 pred_output.masked_image,
                 pred_output.input_prompt)
             self.toggle_button.configure(state="active")
-            self.mask_label.configure(text="Mask: {}".format(
-                image_data.prediction_outputs[image_data.current_mask_idx].input_prompt["name"]))
+            self.mask_label.configure(text="Mask: {},\nscore: {:.5f}, area_ratio: {:.5f}".format(
+                pred_output.input_prompt["name"],
+                pred_output.score,
+                pred_output.area_ratio))
         else:
             self.__draw_img_impl(image_data.image)
 
@@ -91,8 +95,10 @@ class ImageSelection(tk.Frame):
             self.__draw_img_impl_with_input_prompt(
                 pred_output.masked_image,
                 pred_output.input_prompt)
-            self.mask_label.configure(text="Mask: {}".format(
-                self.image_data.prediction_outputs[self.image_data.current_mask_idx].input_prompt["name"]))
+            self.mask_label.configure(text="Mask: {},\nscore: {:.5f}, area_ratio: {:.5f}".format(
+                pred_output.input_prompt["name"],
+                pred_output.score,
+                pred_output.area_ratio))
 
 class StereoImageSelection(tk.Frame):
     def __init__(self, root, draw_height_px, visualize_input_prompt = False):
@@ -130,7 +136,7 @@ class StereoImageSelection(tk.Frame):
         self.is_select_var.set(True)
         self.save_img_check_button.configure(state="disabled")
 
-@dataclass
+@configure
 class CTRLabellerAppConfig:
     visualize_input_prompt: bool = False
     selection_grid_size: Tuple[int, int] = (1, 1)
