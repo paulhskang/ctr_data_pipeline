@@ -1,20 +1,15 @@
 import cv2
 import numpy as np
+import operator
 import torch
 import sys
-from dataclasses import dataclass
-from typing import List, Dict
+
+from typing import List
 
 sys.path.append("..")
 from segment_anything import sam_model_registry, SamPredictor
 from segment_anything.utils.transforms import ResizeLongestSide
 from ctr_labeller.types import ImageData, PredictionOutput
-
-@dataclass
-class InputPrompt:
-    bounding_box: np.ndarray = None
-    point_coords: np.ndarray = None
-    point_labels: np.ndarray = None
 
 def prepare_image(image, transform, device):
     image = transform.apply_image(image)
@@ -31,7 +26,10 @@ def apply_mask(image, mask, random_color=False):
     return cv2.addWeighted(image, 1.0, mask_image, 0.6, 0)
 
 class SAMBatchedPredictor:
-    def __init__(self, sort_based_on_area = False):
+    def __init__(self, sort_based_on = "None"):
+        """
+        sort_based_on: Valid options are None, highets_score, lowest_area_ratio
+        """
         sam_checkpoint = "sam_vit_h_4b8939.pth"
         model_type = "vit_h"
         device = "cuda"
@@ -40,7 +38,7 @@ class SAMBatchedPredictor:
         self.predictor = SamPredictor(sam)
         self.input_prompts = {}
         self.resize_transform = ResizeLongestSide(sam.image_encoder.img_size)
-        self.sort_based_on_area = sort_based_on_area
+        self.sort_based_on = sort_based_on
 
     def predict(self, image_datas: List[ImageData], input_prompts: List[dict]):
         image_pixel_num = image_datas[0].image.shape[0] * image_datas[0].image.shape[1]
@@ -53,8 +51,18 @@ class SAMBatchedPredictor:
                     point_labels=input_prompt["point_labels"],
                     box=input_prompt["box"],
                     multimask_output=False)
-                image_data.prediction_outputs.append(PredictionOutput(input_prompt["name"], mask, apply_mask(image_data.image, mask), score))
                 area_ratio = len(np.column_stack(np.where(mask > 0))) / image_pixel_num
-                print("area_ratio", area_ratio)
-                print("score", score)
+                prediction_output = PredictionOutput(
+                        input_prompt,
+                        mask=mask,
+                        masked_image=apply_mask(image_data.image, mask),
+                        score=score,
+                        area_ratio=area_ratio)
+                image_data.prediction_outputs.append(prediction_output)
+                print("input_prompt: {}, score {}".format(prediction_output.input_prompt["name"], prediction_output.score))
+            # Sorting
+            if self.sort_based_on == "highest_score":
+                image_data.prediction_outputs = sorted(image_data.prediction_outputs, key=operator.attrgetter('score'), reverse=True)
+            elif self.sort_based_on == "lowest_area_ratio":
+                image_data.prediction_outputs = sorted(image_data.prediction_outputs, key=operator.attrgetter('area_ratio'))
             image_data.current_mask_idx = 0

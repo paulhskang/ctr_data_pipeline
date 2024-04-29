@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import cv2
 from dataclasses import dataclass
 from ctr_labeller.types import load_stereo_image_data, print_stereo_names
-from ctr_labeller.ui import CTRLabellerApp
-from ctr_labeller.predictor import SAMBatchedPredictor, InputPrompt
+from ctr_labeller.ui import CTRLabellerApp, CTRLabellerAppConfig
+from ctr_labeller.predictor import SAMBatchedPredictor
 
 def show_mask(mask, ax, random_color=False):
     if random_color:
@@ -36,16 +36,27 @@ def debug_input(image, input_box, input_point = None):
 
 @dataclass
 class CTRLabellerConfig:
+    app_config: CTRLabellerAppConfig
     debug_inputs: bool = True
     apply_mask: bool = True
     test_num: int = None
+    sort_based_on: str = "None"
 
 if __name__ == "__main__":
     # Config
-    config = CTRLabellerConfig()
+
+    app_config =  CTRLabellerAppConfig()
+    app_config.visualize_input_prompt = True
+    app_config.selection_grid_size = (1, 1)
+    app_config.selection_image_height_px = 1200
+    app_config.frame_padx = 10
+    app_config.frame_pady = 10
+
+    config = CTRLabellerConfig(app_config=app_config)
     config.debug_inputs = False
     config.apply_mask = True
-    # config.test_num = 4 # Set to None, for all
+    config.test_num = 2 # Set to None, for all
+    config.sort_based_on = "highest_score"
 
     # Loading Images
     stereo_image_data = load_stereo_image_data(
@@ -95,15 +106,15 @@ if __name__ == "__main__":
                 "point_labels": np.array([1])
             }
         ]
-        predictor = SAMBatchedPredictor()
+        predictor = SAMBatchedPredictor(config.sort_based_on)
         print("SAM is creating masks ...")
         predictor.predict(stereo_image_data.left, left_input_prompts)
         predictor.predict(stereo_image_data.right, right_input_prompts)
         print("SAM finished creating masks!")
 
     # Start the app
-    app = CTRLabellerApp()
-    app.title("CTR SAM Labeller")
+    app = CTRLabellerApp(config.app_config)
+    app.title("CTR SAM Labeller, press [n] to save and proceed with next set")
 
     app.set_stereo_image_data(stereo_image_data)
 

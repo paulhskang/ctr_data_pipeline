@@ -1,7 +1,10 @@
 import numpy as np
 import cv2
 import tkinter as tk
-from PIL import ImageTk,Image
+from dataclasses import dataclass
+from typing import Tuple
+
+from PIL import ImageTk, Image
 
 NO_IMAGE_NAME = "No Image"
 NO_MASK_NAME = "No Mask"
@@ -47,7 +50,8 @@ class ImageSelection(tk.Frame):
         if len(image_data.prediction_outputs) >= 1:
             self.__draw_img_impl(image_data.prediction_outputs[image_data.current_mask_idx].masked_image)
             self.toggle_button.configure(state="active")
-            self.mask_label.configure(text="Mask: {}".format(image_data.prediction_outputs[image_data.current_mask_idx].input_prompt_name))
+            self.mask_label.configure(text="Mask: {}".format(
+                image_data.prediction_outputs[image_data.current_mask_idx].input_prompt["name"]))
         else:
             self.__draw_img_impl(image_data.image)
 
@@ -65,8 +69,9 @@ class ImageSelection(tk.Frame):
         if len(self.image_data.prediction_outputs) >= 1:
             self.image_data.current_mask_idx = (self.image_data.current_mask_idx + 1) % len(self.image_data.prediction_outputs)
             self.__draw_img_impl(self.image_data.prediction_outputs[self.image_data.current_mask_idx].masked_image)
-            self.mask_label.configure(text="Mask: {}".format(self.image_data.prediction_outputs[self.image_data.current_mask_idx].input_prompt_name))
-    
+            self.mask_label.configure(text="Mask: {}".format(
+                self.image_data.prediction_outputs[self.image_data.current_mask_idx].input_prompt["name"]))
+
 class StereoImageSelection(tk.Frame):
     def __init__(self, root, draw_height_px):
         tk.Frame.__init__(self, master=root)
@@ -101,30 +106,37 @@ class StereoImageSelection(tk.Frame):
         self.is_select_var.set(True)
         self.save_img_check_button.configure(state="disabled")
 
+@dataclass
+class CTRLabellerAppConfig:
+    visualize_input_prompt: bool = False
+    selection_grid_size: Tuple[int, int] = (1, 1)
+    selection_image_height_px: int = 1200
+    frame_padx: int = 10
+    frame_pady: int = 10
+
 class CTRLabellerApp(tk.Tk):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, config: CTRLabellerAppConfig, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
         # TODO, from config
-        self.frame_padx = 10
-        self.frame_pady = 10
-        self.selection_grid_size = (1, 1)
-        self.selection_num = self.selection_grid_size[0] * self.selection_grid_size[1]
-        self.selection_image_height_px = 1200
+        self.config = config
+        self.selection_num = self.config.selection_grid_size[0] * self.config.selection_grid_size[1]
 
         self.selections = []
-        for i in range(self.selection_grid_size[0]):
-            for j in range(self.selection_grid_size[1]):
-                selection = StereoImageSelection(self, self.selection_image_height_px)
-                selection.grid(row=i, column=j, padx=self.frame_padx, pady=self.frame_pady)
+        for i in range(self.config.selection_grid_size[0]):
+            for j in range(self.config.selection_grid_size[1]):
+                selection = StereoImageSelection(self, self.config.selection_image_height_px)
+                selection.grid(row=i, column=j, padx=self.config.frame_padx, pady=self.config.frame_pady)
                 self.selections.append(selection)
 
+        # State data
+        self.img_idx = 0
         self.is_done = False
         self.stereo_image_data = None
 
     def set_stereo_image_data(self, stereo_image_data):
-        self.stereo_image_data = stereo_image_data
         self.img_idx = 0
+        self.stereo_image_data = stereo_image_data
         self.is_done = self.__present_next()
 
     # Return value

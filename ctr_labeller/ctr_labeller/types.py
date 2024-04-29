@@ -6,7 +6,7 @@ from typing import List
 
 @dataclass 
 class PredictionOutput:
-    input_prompt_name: str
+    input_prompt: dict
     mask: np.ndarray = None
     masked_image: np.ndarray = None
     score: float = 0.0
