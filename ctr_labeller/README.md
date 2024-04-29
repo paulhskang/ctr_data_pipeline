@@ -11,6 +11,7 @@ paste model here.
 
 For configuring yaml code taken from kaolin-wisp
 ```bash
+conda activate sam
 pip install docstring_parser hydra-zen tyro
 ```
 
@@ -33,4 +34,3 @@ Automatic download doesn't work for now. Download manually and put in structure:
 ```bash
 python3 main_ui.py --config config/config.yaml
 ```
-

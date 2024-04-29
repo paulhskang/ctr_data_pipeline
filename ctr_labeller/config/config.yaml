@@ -1,9 +1,10 @@
 app_config:
   visualize_input_prompt: True
-  selection_grid_size:  [1, 1]
-  selection_image_height_px: 1200
+  selection_grid_size:  [2, 2]
+  selection_image_height_px: 500
   frame_padx: 10
   frame_pady: 10
+  save_root_path: "data/ctr_capture_apr_25_24/masks"
 
 debug_inputs: False
 apply_mask: True

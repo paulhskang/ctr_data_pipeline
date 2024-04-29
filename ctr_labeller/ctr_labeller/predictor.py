@@ -28,7 +28,7 @@ def apply_mask(image, mask, random_color=False):
 class SAMBatchedPredictor:
     def __init__(self, sort_based_on = "None"):
         """
-        sort_based_on: Valid options are None, highets_score, lowest_area_ratio
+        sort_based_on: Valid options are None, highest_score, lowest_area_ratio
         """
         sam_checkpoint = "sam_vit_h_4b8939.pth"
         model_type = "vit_h"
@@ -44,7 +44,6 @@ class SAMBatchedPredictor:
         image_pixel_num = image_datas[0].image.shape[0] * image_datas[0].image.shape[1]
         for image_data in image_datas:
             self.predictor.set_image(image_data.image)
-            # print("image", image_data.name)
             for input_prompt in input_prompts:
                 mask, score, _ = self.predictor.predict(
                     point_coords=input_prompt["point_coords"],
@@ -59,7 +58,6 @@ class SAMBatchedPredictor:
                         score=score[0],
                         area_ratio=area_ratio)
                 image_data.prediction_outputs.append(prediction_output)
-                # print("input_prompt: {}, score {}".format(prediction_output.input_prompt["name"], prediction_output.score))
             # Sorting
             if self.sort_based_on == "highest_score":
                 image_data.prediction_outputs = sorted(image_data.prediction_outputs, key=operator.attrgetter('score'), reverse=True)

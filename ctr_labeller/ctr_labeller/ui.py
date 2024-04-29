@@ -1,18 +1,23 @@
 import copy
 import cv2
+import os
 from dataclasses import dataclass
 import numpy as np
 import tkinter as tk
 from typing import Tuple
 from PIL import ImageTk, Image
 
+from ctr_labeller.types import convert_mask_torch_to_opencv
 from ctr_labeller.config.utils import configure
 
 NO_IMAGE_NAME = "No Image"
 NO_MASK_NAME = "No Mask"
+
 class ImageSelection(tk.Frame):
-    def __init__(self, root, draw_height_px, visualize_input_prompt = False):
+    def __init__(self, root, save_root_path, draw_height_px, visualize_input_prompt = False):
         tk.Frame.__init__(self, master=root)
+
+        self.save_root_path = save_root_path
 
         self.visualize_input_prompt = visualize_input_prompt
         self.canvas = tk.Canvas(self)
@@ -100,18 +105,34 @@ class ImageSelection(tk.Frame):
                 pred_output.score,
                 pred_output.area_ratio))
 
+    def save_current_mask(self):
+        # Should I save or put on buffer to save?
+        # Weird that the image_data name has the .png in it, but ok
+        fullpath_mask = os.path.join(self.save_root_path, "mask_{}".format(self.image_data.name))
+        if os.path.isfile(fullpath_mask):
+            print("{} path exists! Overriding".format(fullpath_mask))
+        fullpath_image_and_mask = os.path.join(self.save_root_path, "image_and_mask_{}".format(self.image_data.name))
+        if os.path.isfile(fullpath_image_and_mask):
+            print("{} path exists! Overriding".format(fullpath_image_and_mask))
+
+        current_prediction_output = self.image_data.prediction_outputs[self.image_data.current_mask_idx]
+        cv2.imwrite(fullpath_mask, convert_mask_torch_to_opencv(current_prediction_output.mask))
+        cv2.imwrite(fullpath_image_and_mask, cv2.cvtColor(current_prediction_output.masked_image, cv2.COLOR_RGB2BGR))
+
+        # TODO, check for already processed images
+
 class StereoImageSelection(tk.Frame):
-    def __init__(self, root, draw_height_px, visualize_input_prompt = False):
+    def __init__(self, root, save_root_path, draw_height_px, visualize_input_prompt = False):
         tk.Frame.__init__(self, master=root)
 
         self.image_frame = tk.Frame(self)
         self.image_frame.grid(row=0, column=0)
 
         # Image and label
-        self.left_image_selection = ImageSelection(self.image_frame,
+        self.left_image_selection = ImageSelection(self.image_frame, save_root_path,
                                                    draw_height_px, visualize_input_prompt)
         self.left_image_selection.grid(row=0, column=0)
-        self.right_image_selection = ImageSelection(self.image_frame,
+        self.right_image_selection = ImageSelection(self.image_frame, save_root_path,
                                                     draw_height_px, visualize_input_prompt)
         self.right_image_selection.grid(row=0, column=1)
 
@@ -136,6 +157,10 @@ class StereoImageSelection(tk.Frame):
         self.is_select_var.set(True)
         self.save_img_check_button.configure(state="disabled")
 
+    def save_current_mask(self):
+        self.left_image_selection.save_current_mask()
+        self.right_image_selection.save_current_mask()
+
 @configure
 class CTRLabellerAppConfig:
     visualize_input_prompt: bool = False
@@ -143,20 +168,22 @@ class CTRLabellerAppConfig:
     selection_image_height_px: int = 1200
     frame_padx: int = 10
     frame_pady: int = 10
+    save_root_path: str = ""
 
 class CTRLabellerApp(tk.Tk):
     def __init__(self, config: CTRLabellerAppConfig, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
-        # TODO, from config
         self.config = config
-        self.selection_num = self.config.selection_grid_size[0] * self.config.selection_grid_size[1]
+        if not os.path.exists(config.save_root_path):
+            os.mkdir(config.save_root_path)
 
+        self.selection_num = self.config.selection_grid_size[0] * self.config.selection_grid_size[1]
         self.selections = []
         for i in range(self.config.selection_grid_size[0]):
             for j in range(self.config.selection_grid_size[1]):
-                selection = StereoImageSelection(
-                    self, self.config.selection_image_height_px, self.config.visualize_input_prompt)
+                selection = StereoImageSelection(self, config.save_root_path,
+                    self.config.selection_image_height_px, self.config.visualize_input_prompt)
                 selection.grid(row=i, column=j, padx=self.config.frame_padx, pady=self.config.frame_pady)
                 self.selections.append(selection)
 
@@ -197,6 +224,8 @@ class CTRLabellerApp(tk.Tk):
 
     def __save_selections(self):
         print("Saving selections")
+        for selection in self.selections:
+            selection.save_current_mask()
 
     def keypress_event(self, input):
         # print(type(input)) # What is tkinter giving here?
