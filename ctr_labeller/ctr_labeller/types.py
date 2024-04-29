@@ -10,6 +10,7 @@ class PredictionOutput:
     mask: np.ndarray = None
     masked_image: np.ndarray = None
     score: float = 0.0
+    area_ratio: float = 0.0
 
 @dataclass
 class ImageData:

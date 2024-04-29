@@ -31,7 +31,7 @@ def apply_mask(image, mask, random_color=False):
     return cv2.addWeighted(image, 1.0, mask_image, 0.6, 0)
 
 class SAMBatchedPredictor:
-    def __init__(self):
+    def __init__(self, sort_based_on_area = False):
         sam_checkpoint = "sam_vit_h_4b8939.pth"
         model_type = "vit_h"
         device = "cuda"
@@ -40,10 +40,13 @@ class SAMBatchedPredictor:
         self.predictor = SamPredictor(sam)
         self.input_prompts = {}
         self.resize_transform = ResizeLongestSide(sam.image_encoder.img_size)
+        self.sort_based_on_area = sort_based_on_area
 
     def predict(self, image_datas: List[ImageData], input_prompts: List[dict]):
+        image_pixel_num = image_datas[0].image.shape[0] * image_datas[0].image.shape[1]
         for image_data in image_datas:
             self.predictor.set_image(image_data.image)
+            print("image", image_data.name)
             for input_prompt in input_prompts:
                 mask, score, _ = self.predictor.predict(
                     point_coords=input_prompt["point_coords"],
@@ -51,4 +54,7 @@ class SAMBatchedPredictor:
                     box=input_prompt["box"],
                     multimask_output=False)
                 image_data.prediction_outputs.append(PredictionOutput(input_prompt["name"], mask, apply_mask(image_data.image, mask), score))
+                area_ratio = len(np.column_stack(np.where(mask > 0))) / image_pixel_num
+                print("area_ratio", area_ratio)
+                print("score", score)
             image_data.current_mask_idx = 0
