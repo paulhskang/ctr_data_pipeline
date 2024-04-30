@@ -105,22 +105,6 @@ class ImageSelection(tk.Frame):
                 pred_output.score,
                 pred_output.area_ratio))
 
-    def save_current_mask(self):
-        # Should I save or put on buffer to save?
-        # Weird that the image_data name has the .png in it, but ok
-        fullpath_mask = os.path.join(self.save_root_path, "mask_{}".format(self.image_data.name))
-        if os.path.isfile(fullpath_mask):
-            print("{} path exists! Overriding".format(fullpath_mask))
-        fullpath_image_and_mask = os.path.join(self.save_root_path, "image_and_mask_{}".format(self.image_data.name))
-        if os.path.isfile(fullpath_image_and_mask):
-            print("{} path exists! Overriding".format(fullpath_image_and_mask))
-
-        current_prediction_output = self.image_data.prediction_outputs[self.image_data.current_mask_idx]
-        cv2.imwrite(fullpath_mask, convert_mask_torch_to_opencv(current_prediction_output.mask))
-        cv2.imwrite(fullpath_image_and_mask, cv2.cvtColor(current_prediction_output.masked_image, cv2.COLOR_RGB2BGR))
-
-        # TODO, check for already processed images
-
 class StereoImageSelection(tk.Frame):
     def __init__(self, root, save_root_path, draw_height_px, visualize_input_prompt = False):
         tk.Frame.__init__(self, master=root)
@@ -143,8 +127,10 @@ class StereoImageSelection(tk.Frame):
             onvalue = True, offvalue = False, state="disabled", height=draw_height_px//100)
         self.save_img_check_button.grid(row=1, column=0, sticky="nsew")
 
+        self.current_frame_id = -1
     # In this app, images should all have the same size
-    def set_context(self, left_img_data, right_img_data):
+    def set_context(self, frame_id, left_img_data, right_img_data):
+        self.current_frame_id = frame_id
         self.left_image_selection.set_context(left_img_data)
         self.right_image_selection.set_context(right_img_data)
 
@@ -152,14 +138,48 @@ class StereoImageSelection(tk.Frame):
         self.save_img_check_button.configure(state="active")
         
     def disable_context(self, img_x_size, img_y_size):
+        self.current_frame_id = -1
         self.left_image_selection.disable_context(img_x_size, img_y_size)
         self.right_image_selection.disable_context(img_x_size, img_y_size)      
         self.is_select_var.set(True)
         self.save_img_check_button.configure(state="disabled")
 
-    def save_current_mask(self):
-        self.left_image_selection.save_current_mask()
-        self.right_image_selection.save_current_mask()
+    def get_current_context(self):
+        return self.current_frame_id, self.left_image_selection.image_data, self.right_image_selection.image_data
+
+import csv
+class CTRLabellerDataSaver:
+    def __init__(self, save_root_path, format_file_path):
+        self.save_root_path = save_root_path
+        self.fields = ["frame_id", "left_image", "right_image", "is_processed", "left_image_mask", "right_image_mask"]
+        if os.path.isfile(format_file_path):
+            self.format_dict = 0 # load data
+        else:
+            with open(format_file_path, 'w', newline='') as file: 
+                csv.DictWriter(file, fieldnames = self.fields).writeheader()
+            self.format_dict = {}
+
+    def check_is_processed():
+        return False
+
+    def save_current_mask(self, image_data):
+        fullpath_mask = os.path.join(self.save_root_path, "mask_{}".format(image_data.name))
+        if os.path.isfile(fullpath_mask):
+            print("{} path exists! Overriding".format(fullpath_mask))
+        fullpath_image_and_mask = os.path.join(self.save_root_path, "image_and_mask_{}".format(self.image_data.name))
+        if os.path.isfile(fullpath_image_and_mask):
+            print("{} path exists! Overriding".format(fullpath_image_and_mask))
+
+        current_prediction_output = image_data.prediction_outputs[image_data.current_mask_idx]
+        cv2.imwrite(fullpath_mask, convert_mask_torch_to_opencv(current_prediction_output.mask))
+        cv2.imwrite(fullpath_image_and_mask, cv2.cvtColor(current_prediction_output.masked_image, cv2.COLOR_RGB2BGR))
+
+    def save_current_stereo_masks(self, frame_id, image_data_left, image_data_right):
+        self.save_current_mask(image_data_left)
+        self.save_current_mask(image_data_right)
+        self.format_dict[frame_id] = {
+            {"name": frame_id, "left_image": image_data_left.name, "right_image": image_data_right}
+        }
 
 @configure
 class CTRLabellerAppConfig:
@@ -175,8 +195,11 @@ class CTRLabellerApp(tk.Tk):
         tk.Tk.__init__(self, *args, **kwargs)
 
         self.config = config
-        if not os.path.exists(config.save_root_path):
+        if not os.path.exists(config.save_root_path): # Means no format path
             os.mkdir(config.save_root_path)
+
+        format_file_path = os.path.join(config.save_root_path, "format.csv")
+        self.data_saver = CTRLabellerDataSaver(config.save_root_path, format_file_path)
 
         self.selection_num = self.config.selection_grid_size[0] * self.config.selection_grid_size[1]
         self.selections = []
@@ -205,6 +228,7 @@ class CTRLabellerApp(tk.Tk):
 
         while(True):
             self.selections[selection_idx].set_context(
+                self.stereo_image_data.frame_ids[self.img_idx],
                 self.stereo_image_data.left[self.img_idx],
                 self.stereo_image_data.right[self.img_idx])
             self.img_idx += 1

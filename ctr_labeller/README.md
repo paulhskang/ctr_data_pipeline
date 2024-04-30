@@ -15,6 +15,11 @@ conda activate sam
 pip install docstring_parser hydra-zen tyro
 ```
 
+Install pandas
+```bash
+pip install pandas
+```
+
 # Download Dataset
 
 Automatic download doesn't work for now. Download manually and put in structure:

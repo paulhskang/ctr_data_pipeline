@@ -25,6 +25,7 @@ class ImageData:
 class StereoImageData:
     left: List[ImageData] = None
     right: List[ImageData] = None
+    frame_ids: List[str] = None
 
 def load_image_data(path, test_num = -1):
     image_datas = []
@@ -54,6 +55,9 @@ def load_stereo_image_data(left_path, right_path, test_num = None, already_proce
         right_image_datas = right_image_datas + load_image_data(right_path, test_num)
 
     assert len(left_image_datas) == len(right_image_datas)
+    # TODO temp
+    frame_ids = [i for i in range(len(left_image_datas))]
+
     # TODO, @Paul, how do I check if left image correlates to right? unless we agree on naming the image
     # Or if there is a csv or json file, for the data information.
     # TODO, check for already processed images
@@ -61,6 +65,7 @@ def load_stereo_image_data(left_path, right_path, test_num = None, already_proce
     stereo_image_data = StereoImageData()
     stereo_image_data.left = left_image_datas
     stereo_image_data.right = right_image_datas
+    stereo_image_data.frame_ids = frame_ids
     return stereo_image_data
 
 def convert_mask_torch_to_opencv(sam_mask):

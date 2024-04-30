@@ -1,11 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import cv2
-from dataclasses import dataclass
+
 from ctr_labeller.types import load_stereo_image_data, print_stereo_names
 from ctr_labeller.ui import CTRLabellerApp, CTRLabellerAppConfig
 from ctr_labeller.predictor import SAMBatchedPredictor
-from ctr_labeller.config.utils import parse_config, configure, autoconfig
+from ctr_labeller.config.utils import parse_config, configure
 
 def show_mask(mask, ax, random_color=False):
     if random_color:
@@ -48,12 +47,12 @@ if __name__ == "__main__":
     config = parse_config(CTRLabellerConfig, yaml_arg='--config')
 
     # Loading Images
-    stereo_image_data = load_stereo_image_data(
+    stereo_image_datas = load_stereo_image_data(
         "data/ctr_capture_apr_25_24/cam1_*.png",
         "data/ctr_capture_apr_25_24/cam2_*.png", config.test_num)
 
     print("Please double check names if stereo data is properly correlated")
-    print_stereo_names(stereo_image_data, range(len(stereo_image_data.left)))
+    print_stereo_names(stereo_image_datas, range(len(stereo_image_datas)))
 
     # SAM Input
     
