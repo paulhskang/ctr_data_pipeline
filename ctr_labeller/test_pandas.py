@@ -19,3 +19,7 @@ from_csv_df = pd.read_csv('out.csv')
 dict_from_csv = from_csv_df.to_dict('records')
 print(df)
 print(dict_from_csv)
+
+# Convert to set
+frame_ids_set = set(from_csv_df["frame_id"])
+print(frame_ids_set)
