@@ -37,5 +37,5 @@ Automatic download doesn't work for now. Download manually and put in structure:
 # Run
 
 ```bash
-python3 main_ui.py --config config/config.yaml
+python3 main_ui.py --config config/config.yaml --data-path data/ctr_capture_apr_25_24
 ```

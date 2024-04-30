@@ -26,7 +26,7 @@ def apply_mask(image, mask, random_color=False):
     return cv2.addWeighted(image, 1.0, mask_image, 0.6, 0)
 
 class SAMBatchedPredictor:
-    def __init__(self, sort_based_on = "None"):
+    def __init__(self, data_saver, sort_based_on = "None"):
         """
         sort_based_on: Valid options are None, highest_score, lowest_area_ratio
         """
@@ -39,10 +39,14 @@ class SAMBatchedPredictor:
         self.input_prompts = {}
         self.resize_transform = ResizeLongestSide(sam.image_encoder.img_size)
         self.sort_based_on = sort_based_on
+        self.data_saver = data_saver
 
-    def predict(self, image_datas: List[ImageData], input_prompts: List[dict]):
+    def predict(self, image_datas: List[ImageData], frame_ids: List[str], input_prompts: List[dict]):
         image_pixel_num = image_datas[0].image.shape[0] * image_datas[0].image.shape[1]
-        for image_data in image_datas:
+        for i  in range(len(image_datas)):
+            image_data = image_datas[i]
+            if self.data_saver.check_is_mask_processed(frame_ids[i]):
+                continue
             self.predictor.set_image(image_data.image)
             for input_prompt in input_prompts:
                 mask, score, _ = self.predictor.predict(

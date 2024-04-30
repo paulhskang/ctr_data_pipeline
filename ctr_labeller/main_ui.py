@@ -1,8 +1,9 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
 from ctr_labeller.types import load_stereo_image_data, print_stereo_names
-from ctr_labeller.ui import CTRLabellerApp, CTRLabellerAppConfig
+from ctr_labeller.ui import CTRLabellerApp, CTRLabellerAppConfig, CTRLabellerDataSaver
 from ctr_labeller.predictor import SAMBatchedPredictor
 from ctr_labeller.config.utils import parse_config, configure
 
@@ -36,20 +37,24 @@ def debug_input(image, input_box, input_point = None):
 
 @configure
 class CTRLabellerConfig:
+    data_path: str
     app_config: CTRLabellerAppConfig
     debug_inputs: bool = True
     apply_mask: bool = True
     test_num: int = -1
     sort_based_on: str = "None"
+    save_root_path: str = ""
 
 if __name__ == "__main__":
+
     # Config
     config = parse_config(CTRLabellerConfig, yaml_arg='--config')
 
     # Loading Images
-    stereo_image_data = load_stereo_image_data(
-        "data/ctr_capture_apr_25_24/cam1_*.png",
-        "data/ctr_capture_apr_25_24/cam2_*.png", config.test_num)
+    left_path = os.path.join(config.data_path, "cam1_*.png")
+    right_path = os.path.join(config.data_path, "cam2_*.png")
+
+    stereo_image_data = load_stereo_image_data(left_path, right_path, config.test_num)
 
     print("Please double check names if stereo data is properly correlated")
     print_stereo_names(stereo_image_data, range(len(stereo_image_data.left)))
@@ -63,6 +68,7 @@ if __name__ == "__main__":
     #     debug_input(stereo_image_data[img_idx].right.image, right_input_box)
     #     plt.show()
 
+    data_saver = CTRLabellerDataSaver(config.save_root_path)
     # SAM Create Masks
     if config.apply_mask:
         left_input_prompts = [
@@ -94,19 +100,17 @@ if __name__ == "__main__":
                 "point_labels": np.array([1])
             }
         ]
-        predictor = SAMBatchedPredictor(config.sort_based_on)
+        predictor = SAMBatchedPredictor(data_saver, config.sort_based_on)
         print("SAM is creating masks ...")
-        predictor.predict(stereo_image_data.left, left_input_prompts)
-        predictor.predict(stereo_image_data.right, right_input_prompts)
+        predictor.predict(stereo_image_data.left, stereo_image_data.frame_ids, left_input_prompts)
+        predictor.predict(stereo_image_data.right, stereo_image_data.frame_ids, right_input_prompts)
         print("SAM finished creating masks!")
 
     # Start the app
-    app = CTRLabellerApp(config.app_config)
+    app = CTRLabellerApp(config.app_config, data_saver)
     app.title("CTR SAM Labeller, press [n] to save and proceed with next set")
 
     app.set_stereo_image_data(stereo_image_data)
-
-    print("Press [n] to save and present next picture")
 
     app.bind("n", app.keypress_event)
     app.mainloop()
