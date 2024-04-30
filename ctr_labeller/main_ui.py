@@ -47,12 +47,12 @@ if __name__ == "__main__":
     config = parse_config(CTRLabellerConfig, yaml_arg='--config')
 
     # Loading Images
-    stereo_image_datas = load_stereo_image_data(
+    stereo_image_data = load_stereo_image_data(
         "data/ctr_capture_apr_25_24/cam1_*.png",
         "data/ctr_capture_apr_25_24/cam2_*.png", config.test_num)
 
     print("Please double check names if stereo data is properly correlated")
-    print_stereo_names(stereo_image_datas, range(len(stereo_image_datas)))
+    print_stereo_names(stereo_image_data, range(len(stereo_image_data.left)))
 
     # SAM Input
     
