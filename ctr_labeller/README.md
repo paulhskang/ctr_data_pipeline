@@ -39,3 +39,8 @@ Automatic download doesn't work for now. Download manually and put in structure:
 ```bash
 python3 main_ui.py --config config/config.yaml --data-path data/ctr_capture_apr_25_24
 ```
+
+# TODO:
+- Picture zooming
+- Multithreaded dataloader
+
