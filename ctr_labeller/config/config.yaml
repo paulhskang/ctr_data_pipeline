@@ -8,7 +8,7 @@ app_config:
 save_root_path: "data/ctr_capture_apr_25_24"
 debug_inputs: False
 apply_mask: True
-test_num: -1 # Set to -1, for all
+test_num: 2 # Set to -1, for all
 sort_based_on: "highest_score"
 
 # SAM Predictor

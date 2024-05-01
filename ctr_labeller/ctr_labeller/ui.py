@@ -18,11 +18,14 @@ class ImageSelection(tk.Frame):
         tk.Frame.__init__(self, master=root)
 
         self.visualize_input_prompt = visualize_input_prompt
+        
+        # Canvas Frame
         self.canvas = tk.Canvas(self)
         self.canvas.grid(row=0, column=0)
 
         self.draw_height_px = draw_height_px
 
+        # Label Frame
         self.label_frame = tk.Frame(self)
         self.label_frame.grid(row=1, column=0, sticky="nsew")
         self.label_frame.grid_columnconfigure(0, weight=1)
@@ -33,33 +36,50 @@ class ImageSelection(tk.Frame):
         self.mask_label = tk.Label(self.label_frame, text=NO_MASK_NAME, bg="skyblue")
         self.mask_label.grid(row=0, column=1, ipadx=10, sticky="nsew")
 
-        # Toggle Button
-        self.toggle_button = tk.Button(self.label_frame, text ="Toggle Mask", command = self.toggle_mask,
-                                       state="disabled", height=self.draw_height_px//150)
-        self.toggle_button.grid(row=1, column=0, sticky="nsew")
-
+        # Button Frame
+        self.button_frame = tk.Frame(self)
+        self.button_frame.grid(row=2, column=0, sticky="nsew")
+        scaler = 150
+        
+        ## Zoom Button
+        self.toggle_zoom_button = tk.Button(self.button_frame, text ="Zoom to Mask", command = self.toggle_zoom,
+                                       state="disabled", height=self.draw_height_px//scaler)
+        self.toggle_zoom_button.grid(row=0, column=0, sticky="nsew")
+        
+        ## Toggle Button
+        self.toggle_mask_button = tk.Button(self.button_frame, text ="Toggle Mask", command = self.toggle_mask,
+                                       state="disabled", height=self.draw_height_px//scaler)
+        self.toggle_mask_button.grid(row=0, column=1, sticky="nsew")
+        
         ## Select button
         self.is_select_var = tk.BooleanVar(value=True) # Image is to be saved by default
-        self.save_img_check_button = tk.Checkbutton(self.label_frame, \
+        self.save_img_check_button = tk.Checkbutton(self.button_frame, \
             text = "Save Mask?", variable = self.is_select_var, \
-            onvalue = True, offvalue = False, state="disabled", height=draw_height_px//150)
-        self.save_img_check_button.grid(row=1, column=1, sticky="nsew")
+            onvalue = True, offvalue = False, state="disabled", height=draw_height_px//scaler)
+        self.save_img_check_button.grid(row=0, column=2, sticky="nsew")
 
-        self.image_data = None
         blank_image = np.zeros((self.draw_height_px , self.draw_height_px , 3), np.uint8)
         self.__draw_img_impl(blank_image)
+        
+        # State data
+        self.image_data = None
+        self.current_prompted_image = None
+        self.is_zoomed = False
     
-    def __draw_img_impl(self, img):
+    def __resize_img_to_window(self, img):
         scale = img.shape[1]/self.draw_height_px
-        resized_cv_img = cv2.resize(img, (self.draw_height_px, int(img.shape[0]//scale)), interpolation=cv2.INTER_LINEAR)
-        self.image_x = resized_cv_img.shape[0]
-        self.image_y = resized_cv_img.shape[1]
-        tk_img = ImageTk.PhotoImage(image=Image.fromarray(resized_cv_img))
+        return cv2.resize(img, (self.draw_height_px, int(img.shape[0]//scale)), interpolation=cv2.INTER_LINEAR)
+        
+    def __draw_img_impl(self, img):
+        img = self.__resize_img_to_window(img)
+        self.image_x = img.shape[0]
+        self.image_y = img.shape[1]   
+        tk_img = ImageTk.PhotoImage(image=Image.fromarray(img))
         self.canvas.image = tk_img
         self.canvas.configure(width=self.image_y, height=self.image_x)
         self.canvas.create_image(10, 10, anchor=tk.NW, image=tk_img)
 
-    def __draw_img_impl_with_input_prompt(self, img, input_prompt = None):
+    def __create_img_with_input_prompt(self, img, input_prompt = None):
         prompted_img = copy.deepcopy(img)
         if self.visualize_input_prompt and input_prompt:
             if input_prompt["box"] is not None:
@@ -72,22 +92,24 @@ class ImageSelection(tk.Frame):
                 cv2.drawMarker(prompted_img,
                                (point_coord[0], point_coord[1]), color=(0, 255, 0), markerType=cv2.MARKER_DIAMOND,
                                markerSize=20, thickness=2, line_type=cv2.LINE_AA)
-        self.__draw_img_impl(prompted_img)
-
+        return prompted_img
+    
     def set_context(self, image_data):
         self.image_data = image_data
+        image_to_draw = image_data.image
         if len(image_data.prediction_outputs) >= 1:
             pred_output = image_data.prediction_outputs[image_data.current_mask_idx]
-            self.__draw_img_impl_with_input_prompt(
+            image_to_draw = self.__create_img_with_input_prompt(
                 pred_output.masked_image,
                 pred_output.input_prompt)
-            self.toggle_button.configure(state="active")
+            self.current_prompted_image = image_to_draw
+            self.toggle_zoom_button.configure(state="active")
+            self.toggle_mask_button.configure(state="active")
             self.mask_label.configure(text="Mask: {},\nscore: {:.5f}, area_ratio: {:.5f}".format(
                 pred_output.input_prompt["name"],
                 pred_output.score,
                 pred_output.area_ratio))
-        else:
-            self.__draw_img_impl(image_data.image)
+        self.__draw_img_impl(image_to_draw)
 
         # Dynamic changes to buttons
         self.is_select_var.set(True) # reset button
@@ -99,7 +121,8 @@ class ImageSelection(tk.Frame):
         self.__draw_img_impl(blank_image)
         self.label.configure(text=NO_IMAGE_NAME)
         self.mask_label.configure(text=NO_MASK_NAME)
-        self.toggle_button.configure(state="disabled")
+        self.toggle_zoom_button.configure(state="disabled")
+        self.toggle_mask_button.configure(state="disabled")
         self.is_select_var.set(True)
         self.save_img_check_button.configure(state="disabled")
 
@@ -107,14 +130,49 @@ class ImageSelection(tk.Frame):
         if len(self.image_data.prediction_outputs) >= 1:
             self.image_data.current_mask_idx = (self.image_data.current_mask_idx + 1) % len(self.image_data.prediction_outputs)
             pred_output = self.image_data.prediction_outputs[self.image_data.current_mask_idx]
-            self.__draw_img_impl_with_input_prompt(
+            self.current_prompted_image = self.__create_img_with_input_prompt(
                 pred_output.masked_image,
                 pred_output.input_prompt)
+            self.__draw_img_impl(self.current_prompted_image)
             self.mask_label.configure(text="Mask: {},\nscore: {:.5f}, area_ratio: {:.5f}".format(
                 pred_output.input_prompt["name"],
                 pred_output.score,
                 pred_output.area_ratio))
+            
+    def __create_zoomed_image_to_mask(self, img, mask):        
+        opencv_mask = convert_mask_torch_to_opencv(mask)
+        opencv_mask = opencv_mask.reshape(opencv_mask.shape[0], -1)
+        contours, _ = cv2.findContours(opencv_mask, cv2.RETR_FLOODFILL, cv2.CHAIN_APPROX_SIMPLE)
+        bbox = cv2.boundingRect(contours[0])
 
+        # keep same aspect ratio        
+        x, y, w, h = bbox
+        original_aspect_ratio = float(img.shape[0])/ float(img.shape[1])
+        bbox_aspect_ratio = float(h)/float(w)
+
+        new_bbox = np.array([0, 0, 0, 0])
+        if bbox_aspect_ratio < original_aspect_ratio:
+            new_bbox[2] = w
+            new_bbox[3] = int(w * original_aspect_ratio)
+            new_bbox[0] = x
+            new_bbox[1] = np.clip(y + h // 2 - new_bbox[3] //2, 0, img.shape[0])
+        else: # bbox_aspect_ratio > original_aspect_ratio:
+            new_bbox[3] = h
+            new_bbox[2] = int(h / original_aspect_ratio)
+            new_bbox[1] = y
+            new_bbox[0] = np.clip(x + w // 2 - new_bbox[2] //2, 0, img.shape[1])
+        x, y, w, h = new_bbox
+        return img[y:y+h, x:x+w]
+        # return img[self.input_prompt_min_xy[0]:self.input_prompt_max_xy[0]]
+    
+    def toggle_zoom(self):
+        self.is_zoomed = not self.is_zoomed
+        if self.is_zoomed:
+            self.__draw_img_impl(self.__create_zoomed_image_to_mask(
+                self.current_prompted_image, self.image_data.prediction_outputs[self.image_data.current_mask_idx].mask))
+        else: # Not zoomed
+            self.__draw_img_impl(self.current_prompted_image)
+            
 class StereoImageSelection(tk.Frame):
     def __init__(self, root, draw_height_px, visualize_input_prompt = False):
         tk.Frame.__init__(self, master=root)
