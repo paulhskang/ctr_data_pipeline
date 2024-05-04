@@ -3,7 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from ctr_labeller.types import load_stereo_image_data, print_stereo_names
-from ctr_labeller.ui import CTRLabellerApp, CTRLabellerAppConfig, CTRLabellerDataSaver
+from ctr_labeller.datasaver import DataSaver
+from ctr_labeller.ui import CTRLabellerApp, CTRLabellerAppConfig
 from ctr_labeller.predictor import SAMBatchedPredictor
 from ctr_labeller.config.utils import parse_config, configure
 
@@ -68,7 +69,7 @@ if __name__ == "__main__":
     #     debug_input(stereo_image_data[img_idx].right.image, right_input_box)
     #     plt.show()
 
-    data_saver = CTRLabellerDataSaver(config.save_root_path)
+    data_saver = DataSaver(config.save_root_path)
     # SAM Create Masks
     if config.apply_mask:
         left_input_prompts = [

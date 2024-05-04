@@ -1,5 +1,6 @@
 app_config:
   visualize_input_prompt: True
+  zoom_factor: 2.0
   selection_grid_size:  [2, 1]
   selection_image_height_px: 700
   frame_padx: 10
@@ -8,7 +9,7 @@ app_config:
 save_root_path: "data/ctr_capture_apr_25_24"
 debug_inputs: False
 apply_mask: True
-test_num: 2 # Set to -1, for all
+test_num: -1 # Set to -1, for all
 sort_based_on: "highest_score"
 
 # SAM Predictor

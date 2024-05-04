@@ -1,28 +1,29 @@
 import copy
 import cv2
-import os
-from dataclasses import dataclass
 import numpy as np
 import tkinter as tk
 from typing import Tuple
 from PIL import ImageTk, Image
 
-from ctr_labeller.types import convert_mask_torch_to_opencv
 from ctr_labeller.config.utils import configure
+from ctr_labeller.datasaver import DataSaver
 
 NO_IMAGE_NAME = "No Image"
 NO_MASK_NAME = "No Mask"
 
 class ImageSelection(tk.Frame):
-    def __init__(self, root, draw_height_px, visualize_input_prompt = False):
+    def __init__(self, root, draw_height_px,
+                 visualize_input_prompt: bool = False, zoom_factor: float = 2.0):
         tk.Frame.__init__(self, master=root)
 
         self.visualize_input_prompt = visualize_input_prompt
-        
+        self.zoom_factor = zoom_factor
+
         # Canvas Frame
         self.canvas = tk.Canvas(self)
         self.canvas.grid(row=0, column=0)
-
+        self.canvas.bind("<Button-1>", self.on_click_toggle_zoom)
+    
         self.draw_height_px = draw_height_px
 
         # Label Frame
@@ -42,28 +43,27 @@ class ImageSelection(tk.Frame):
         scaler = 150
         
         ## Zoom Button
-        self.toggle_zoom_button = tk.Button(self.button_frame, text ="Zoom to Mask", command = self.toggle_zoom,
-                                       state="disabled", height=self.draw_height_px//scaler)
-        self.toggle_zoom_button.grid(row=0, column=0, sticky="nsew")
+        # self.toggle_zoom_button = tk.Button(self.button_frame, text ="Zoom to Mask", command = self.toggle_zoom,
+        #                                state="disabled", height=self.draw_height_px//scaler)
+        # self.toggle_zoom_button.grid(row=0, column=0, sticky="nsew")
         
         ## Toggle Button
         self.toggle_mask_button = tk.Button(self.button_frame, text ="Toggle Mask", command = self.toggle_mask,
                                        state="disabled", height=self.draw_height_px//scaler)
-        self.toggle_mask_button.grid(row=0, column=1, sticky="nsew")
+        self.toggle_mask_button.grid(row=0, column=0, sticky="nsew")
         
         ## Select button
         self.is_select_var = tk.BooleanVar(value=True) # Image is to be saved by default
         self.save_img_check_button = tk.Checkbutton(self.button_frame, \
             text = "Save Mask?", variable = self.is_select_var, \
             onvalue = True, offvalue = False, state="disabled", height=draw_height_px//scaler)
-        self.save_img_check_button.grid(row=0, column=2, sticky="nsew")
+        self.save_img_check_button.grid(row=0, column=1, sticky="nsew")
 
         blank_image = np.zeros((self.draw_height_px , self.draw_height_px , 3), np.uint8)
-        self.__draw_img_impl(blank_image)
+        self.current_image  = self.__draw_img_impl(blank_image)
         
         # State data
         self.image_data = None
-        self.current_prompted_image = None
         self.is_zoomed = False
     
     def __resize_img_to_window(self, img):
@@ -78,6 +78,7 @@ class ImageSelection(tk.Frame):
         self.canvas.image = tk_img
         self.canvas.configure(width=self.image_y, height=self.image_x)
         self.canvas.create_image(10, 10, anchor=tk.NW, image=tk_img)
+        return img
 
     def __create_img_with_input_prompt(self, img, input_prompt = None):
         prompted_img = copy.deepcopy(img)
@@ -102,79 +103,64 @@ class ImageSelection(tk.Frame):
             image_to_draw = self.__create_img_with_input_prompt(
                 pred_output.masked_image,
                 pred_output.input_prompt)
-            self.current_prompted_image = image_to_draw
-            self.toggle_zoom_button.configure(state="active")
+            # self.toggle_zoom_button.configure(state="active")
             self.toggle_mask_button.configure(state="active")
             self.mask_label.configure(text="Mask: {},\nscore: {:.5f}, area_ratio: {:.5f}".format(
                 pred_output.input_prompt["name"],
                 pred_output.score,
                 pred_output.area_ratio))
-        self.__draw_img_impl(image_to_draw)
+        self.current_image = self.__draw_img_impl(image_to_draw)
 
         # Dynamic changes to buttons
         self.is_select_var.set(True) # reset button
         self.save_img_check_button.configure(state="active")
         self.label.configure(text="Image: {}".format(image_data.name))
+        self.is_zoomed = False
 
     def disable_context(self, img_x_size, img_y_size):
         blank_image = np.zeros((img_x_size, img_y_size, 3), np.uint8)
-        self.__draw_img_impl(blank_image)
+        self.current_image = self.__draw_img_impl(blank_image)
         self.label.configure(text=NO_IMAGE_NAME)
         self.mask_label.configure(text=NO_MASK_NAME)
-        self.toggle_zoom_button.configure(state="disabled")
+        # self.toggle_zoom_button.configure(state="disabled")
         self.toggle_mask_button.configure(state="disabled")
         self.is_select_var.set(True)
         self.save_img_check_button.configure(state="disabled")
+        self.is_zoomed = False
 
     def toggle_mask(self):
+        self.is_zoomed = False
         if len(self.image_data.prediction_outputs) >= 1:
             self.image_data.current_mask_idx = (self.image_data.current_mask_idx + 1) % len(self.image_data.prediction_outputs)
             pred_output = self.image_data.prediction_outputs[self.image_data.current_mask_idx]
-            self.current_prompted_image = self.__create_img_with_input_prompt(
+            prompted_img = self.__create_img_with_input_prompt(
                 pred_output.masked_image,
                 pred_output.input_prompt)
-            self.__draw_img_impl(self.current_prompted_image)
+            self.current_image = self.__draw_img_impl(prompted_img)
             self.mask_label.configure(text="Mask: {},\nscore: {:.5f}, area_ratio: {:.5f}".format(
                 pred_output.input_prompt["name"],
                 pred_output.score,
                 pred_output.area_ratio))
-            
-    def __create_zoomed_image_to_mask(self, img, mask):        
-        opencv_mask = convert_mask_torch_to_opencv(mask)
-        opencv_mask = opencv_mask.reshape(opencv_mask.shape[0], -1)
-        contours, _ = cv2.findContours(opencv_mask, cv2.RETR_FLOODFILL, cv2.CHAIN_APPROX_SIMPLE)
-        bbox = cv2.boundingRect(contours[0])
+        
+    def __create_zoomed_image(self, img, px, py):        
+        new_h = int(img.shape[0] // self.zoom_factor)
+        new_w = int(img.shape[1] // self.zoom_factor)
 
-        # keep same aspect ratio        
-        x, y, w, h = bbox
-        original_aspect_ratio = float(img.shape[0])/ float(img.shape[1])
-        bbox_aspect_ratio = float(h)/float(w)
+        y = np.clip(py - new_h // 2, 0, img.shape[0])
+        x = np.clip(px - new_w // 2, 0, img.shape[1])
 
-        new_bbox = np.array([0, 0, 0, 0])
-        if bbox_aspect_ratio < original_aspect_ratio:
-            new_bbox[2] = w
-            new_bbox[3] = int(w * original_aspect_ratio)
-            new_bbox[0] = x
-            new_bbox[1] = np.clip(y + h // 2 - new_bbox[3] //2, 0, img.shape[0])
-        else: # bbox_aspect_ratio > original_aspect_ratio:
-            new_bbox[3] = h
-            new_bbox[2] = int(h / original_aspect_ratio)
-            new_bbox[1] = y
-            new_bbox[0] = np.clip(x + w // 2 - new_bbox[2] //2, 0, img.shape[1])
-        x, y, w, h = new_bbox
-        return img[y:y+h, x:x+w]
-        # return img[self.input_prompt_min_xy[0]:self.input_prompt_max_xy[0]]
+        return img[y:y+new_h, x:x+new_w]
     
-    def toggle_zoom(self):
+    def on_click_toggle_zoom(self, event):
         self.is_zoomed = not self.is_zoomed
         if self.is_zoomed:
-            self.__draw_img_impl(self.__create_zoomed_image_to_mask(
-                self.current_prompted_image, self.image_data.prediction_outputs[self.image_data.current_mask_idx].mask))
+            self.__draw_img_impl(self.__create_zoomed_image(self.current_image, event.x, event.y))
         else: # Not zoomed
-            self.__draw_img_impl(self.current_prompted_image)
-            
+            self.__draw_img_impl(self.current_image)
+
 class StereoImageSelection(tk.Frame):
-    def __init__(self, root, draw_height_px, visualize_input_prompt = False):
+    def __init__(self, root, draw_height_px, 
+                 visualize_input_prompt: bool = False, zoom_factor: float = 2.0):
         tk.Frame.__init__(self, master=root)
 
         self.image_frame = tk.Frame(self)
@@ -182,10 +168,10 @@ class StereoImageSelection(tk.Frame):
 
         # Image and label
         self.left_image_selection = ImageSelection(self.image_frame,
-                                                   draw_height_px, visualize_input_prompt)
+                                                   draw_height_px, visualize_input_prompt, zoom_factor)
         self.left_image_selection.grid(row=0, column=0)
         self.right_image_selection = ImageSelection(self.image_frame,
-                                                    draw_height_px, visualize_input_prompt)
+                                                    draw_height_px, visualize_input_prompt, zoom_factor)
         self.right_image_selection.grid(row=0, column=1)
         self.current_frame_id = -1
         self.is_activate = False
@@ -208,71 +194,17 @@ class StereoImageSelection(tk.Frame):
         self.right_image_selection.image_data.is_save_mask = self.right_image_selection.is_select_var.get()
         return self.current_frame_id, self.left_image_selection.image_data, self.right_image_selection.image_data
 
-import pandas as pd
-import atexit
-
-class CTRLabellerDataSaver:
-    def __init__(self, save_root_path):
-        self.save_root_path = save_root_path
-        self.fields = ["left_image", "right_image", "is_processed", "left_mask_fail", "right_mask_fail", "left_mask", "right_mask"]
-        self.mask_path = os.path.join(save_root_path, "masks") 
-        if not os.path.exists(self.mask_path): # Means no format path
-            os.mkdir(self.mask_path)
-
-        self.reference_file_path = os.path.join(save_root_path, "reference.csv")
-        if os.path.isfile(self.reference_file_path):
-            data_frame = pd.read_csv(self.reference_file_path, index_col=0)
-            self.reference_dict = data_frame.to_dict(orient='index')
-        else:
-            self.reference_dict = {}
-        atexit.register(self.destructor)
-
-    def check_is_mask_processed(self, frame_id):
-        if frame_id in self.reference_dict:
-            return True
-        return False
-
-    def save_current_mask(self, image_data):
-        mask_name = "mask_{}".format(image_data.name)
-        fullpath_mask = os.path.join(self.mask_path, "mask_{}".format(image_data.name))
-        # if os.path.exists(fullpath_mask): # Not working properly
-        #     print("{} path exists! Overriding".format(fullpath_mask))
-        fullpath_image_and_mask = os.path.join(self.mask_path, "image_and_mask_{}".format(image_data.name))
-        # if os.path.exists(fullpath_image_and_mask): # Not working properly
-        #     print("{} path exists! Overriding".format(fullpath_image_and_mask))
-
-        current_prediction_output = image_data.prediction_outputs[image_data.current_mask_idx]
-        cv2.imwrite(fullpath_mask, convert_mask_torch_to_opencv(current_prediction_output.mask))
-        cv2.imwrite(fullpath_image_and_mask, cv2.cvtColor(current_prediction_output.masked_image, cv2.COLOR_RGB2BGR))
-        return os.path.join("mask", mask_name)
-
-    def save_current_stereo_masks(self, frame_id, image_data_left, image_data_right):
-        left_mask_name = ""
-        if image_data_left.is_save_mask:
-            left_mask_name = self.save_current_mask(image_data_left)
-        right_mask_name = ""
-        if image_data_right.is_save_mask:
-            right_mask_name = self.save_current_mask(image_data_right)
-        right_mask_name = self.save_current_mask(image_data_right)
-        self.reference_dict[frame_id] = {"left_image": image_data_left.name, "right_image": image_data_right.name,
-             "is_processed": True, "left_mask_fail": not image_data_left.is_save_mask, "right_mask_fail": not image_data_right.is_save_mask, 
-             "left_mask": left_mask_name, "right_mask": right_mask_name}
-
-    def destructor(self):
-        df = pd.DataFrame.from_dict(self.reference_dict, orient='index')
-        df.index.name = "frame_id"
-        df.to_csv(self.reference_file_path)
-
 @configure
 class CTRLabellerAppConfig:
     visualize_input_prompt: bool = False
+    zoom_factor: float = 2.0
     selection_grid_size: Tuple[int, int] = (1, 1)
     selection_image_height_px: int = 1200
     frame_padx: int = 10
     frame_pady: int = 10
 
 class CTRLabellerApp(tk.Tk):
-    def __init__(self, config: CTRLabellerAppConfig, data_saver: CTRLabellerDataSaver, *args, **kwargs):
+    def __init__(self, config: CTRLabellerAppConfig, data_saver: DataSaver, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
         self.config = config
@@ -281,8 +213,8 @@ class CTRLabellerApp(tk.Tk):
         self.selections = []
         for i in range(self.config.selection_grid_size[0]):
             for j in range(self.config.selection_grid_size[1]):
-                selection = StereoImageSelection(self,
-                    self.config.selection_image_height_px, self.config.visualize_input_prompt)
+                selection = StereoImageSelection(self, self.config.selection_image_height_px,
+                                                 self.config.visualize_input_prompt, self.config.zoom_factor)
                 selection.grid(row=i, column=j, padx=self.config.frame_padx, pady=self.config.frame_pady)
                 self.selections.append(selection)
 
@@ -320,7 +252,8 @@ class CTRLabellerApp(tk.Tk):
 
         while selection_idx < self.selection_num:
             self.selections[selection_idx].disable_context(
-                self.selections[selection_idx-1].left_image_selection.image_x, self.selections[selection_idx-1].left_image_selection.image_y)
+                self.selections[selection_idx-1].left_image_selection.image_x, 
+                self.selections[selection_idx-1].left_image_selection.image_y)
             selection_idx += 1
         return True
 
