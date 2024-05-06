@@ -17,14 +17,19 @@ class DataSaver:
         if os.path.isfile(self.reference_file_path):
             data_frame = pd.read_csv(self.reference_file_path, index_col=0)
             self.reference_dict = data_frame.to_dict(orient='index')
+            # print(self.reference_dict)
         else:
             self.reference_dict = {}
         atexit.register(self.destructor)
 
     def check_is_mask_processed(self, frame_id):
-        if frame_id in self.reference_dict:
-            return True
-        return False
+        if not frame_id in self.reference_dict:
+            return False
+        is_processed = self.reference_dict[frame_id]["is_processed"]
+        # print("frame_id {}: ".format(frame_id), is_processed)
+        if pd.isna(is_processed):
+            return False
+        return self.reference_dict[frame_id]["is_processed"]
 
     def save_current_mask(self, image_data):
         mask_name = "mask_{}".format(image_data.name)
