@@ -1,13 +1,14 @@
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+import torch
 
 from ctr_labeller.types import load_stereo_image_data, print_stereo_names
 from ctr_labeller.datasaver import DataSaver
 from ctr_labeller.ui import CTRLabellerApp, CTRLabellerAppConfig
 from ctr_labeller.predictor import SAMBatchedPredictor
 from ctr_labeller.config.utils import parse_config, configure
-
+from ctr_labeller.dataset import StereoDataloader
 def show_mask(mask, ax, random_color=False):
     if random_color:
         color = np.concatenate([np.random.random(3), np.array([0.6])], axis=0)
@@ -55,10 +56,10 @@ if __name__ == "__main__":
     left_path = os.path.join(config.data_path, "cam1_*.png")
     right_path = os.path.join(config.data_path, "cam2_*.png")
 
-    stereo_image_data = load_stereo_image_data(left_path, right_path, config.test_num)
+    # stereo_image_data = load_stereo_image_data(left_path, right_path, config.test_num)
 
-    print("Please double check names if stereo data is properly correlated")
-    print_stereo_names(stereo_image_data, range(len(stereo_image_data.left)))
+    # print("Please double check names if stereo data is properly correlated")
+    # print_stereo_names(stereo_image_data, range(len(stereo_image_data.left)))
 
     # SAM Input
     
@@ -69,7 +70,57 @@ if __name__ == "__main__":
     #     debug_input(stereo_image_data[img_idx].right.image, right_input_box)
     #     plt.show()
 
-    data_saver = DataSaver(config.save_root_path)
+    # data_saver = DataSaver(config.save_root_path)
+
+
+    # New Stuff
+    stereo_image_dataset = StereoDataloader(config.save_root_path, "cam1_", "cam2_")
+    loader = torch.utils.data.DataLoader(stereo_image_dataset, batch_size=4,
+                                         pin_memory=True, num_workers=4, shuffle=False)
+    
+    
+    predictor = SAMBatchedPredictor(stereo_image_dataset.datasaver, config.sort_based_on)
+    left_input_prompts = [
+        {
+            "name": "box_and_point",
+            "box": np.array([300, 500, 1600, 1400]),
+            "point_coords": np.array([[710, 260]]),
+            "point_labels": np.array([1])
+        },
+        {
+            "name": "point",
+            "box": None,
+            "point_coords": np.array([[710, 260]]),
+            "point_labels": np.array([1])
+        }
+    ]
+
+    right_input_prompts = [
+        {
+            "name": "box_and_point",
+            "box": np.array([500, 600, 1500, 1400]),
+            "point_coords": np.array([[1129, 400]]),
+            "point_labels": np.array([1])
+        },
+        {
+            "name": "point",
+            "box": None,
+            "point_coords": np.array([[1129, 400]]),
+            "point_labels": np.array([1])
+        }
+    ]
+    
+    for batch in loader:
+        # print(batch["frame_id"])
+        # print(batch["left_image_name"])
+        # print(batch["right_image"][0])
+        print(type(batch))
+        predictor.predict_stereo(batch)
+    
+
+
+    input ("stop here")
+
     # SAM Create Masks
     if config.apply_mask:
         left_input_prompts = [

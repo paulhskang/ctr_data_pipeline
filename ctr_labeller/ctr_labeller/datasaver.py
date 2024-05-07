@@ -14,7 +14,6 @@ class DataSaver:
         if os.path.isfile(self.reference_file_path):
             data_frame = pd.read_csv(self.reference_file_path, index_col=0)
             self.reference_dict = data_frame.to_dict(orient='index')
-            # print(self.reference_dict)
         elif must_have_csv:
             raise ValueError("must have csv file reference.csv in save_root_path: ".format(save_root_path))
         else:
