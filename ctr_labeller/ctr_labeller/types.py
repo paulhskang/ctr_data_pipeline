@@ -31,6 +31,12 @@ class StereoImageData:
     right: List[ImageData] = None
     frame_ids: List[str] = None
 
+@dataclass 
+class StereoImageData2:
+    frame_id: str
+    left: ImageData
+    right: ImageData
+
 def load_image_data(path, test_num = -1):
     image_datas = []
     counter = 0

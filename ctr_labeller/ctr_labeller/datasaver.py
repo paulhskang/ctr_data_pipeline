@@ -6,20 +6,24 @@ import atexit
 from ctr_labeller.types import convert_mask_torch_to_opencv
 
 class DataSaver:
-    def __init__(self, save_root_path):
+    def __init__(self, save_root_path, must_have_csv = False):
         self.save_root_path = save_root_path
         self.fields = ["left_image", "right_image", "is_processed", "left_mask_fail", "right_mask_fail", "left_mask", "right_mask"]
-        self.mask_path = os.path.join(save_root_path, "masks") 
-        if not os.path.exists(self.mask_path): # Means no format path
-            os.mkdir(self.mask_path)
 
         self.reference_file_path = os.path.join(save_root_path, "reference.csv")
         if os.path.isfile(self.reference_file_path):
             data_frame = pd.read_csv(self.reference_file_path, index_col=0)
             self.reference_dict = data_frame.to_dict(orient='index')
             # print(self.reference_dict)
+        elif must_have_csv:
+            raise ValueError("must have csv file reference.csv in save_root_path: ".format(save_root_path))
         else:
             self.reference_dict = {}
+
+        self.mask_path = os.path.join(save_root_path, "masks") 
+        if not os.path.exists(self.mask_path): # Means no format path
+            os.mkdir(self.mask_path)
+
         atexit.register(self.destructor)
 
     def check_is_mask_processed(self, frame_id):
