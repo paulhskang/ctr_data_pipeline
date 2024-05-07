@@ -29,7 +29,7 @@ class DataSaver:
         # print("frame_id {}: ".format(frame_id), is_processed)
         if pd.isna(is_processed):
             return False
-        return self.reference_dict[frame_id]["is_processed"]
+        return is_processed
 
     def save_current_mask(self, image_data):
         mask_name = "mask_{}".format(image_data.name)
@@ -52,10 +52,12 @@ class DataSaver:
         right_mask_name = ""
         if image_data_right.is_save_mask:
             right_mask_name = self.save_current_mask(image_data_right)
-        right_mask_name = self.save_current_mask(image_data_right)
-        self.reference_dict[frame_id] = {"left_image": image_data_left.name, "right_image": image_data_right.name,
-             "is_processed": True, "left_mask_fail": not image_data_left.is_save_mask, "right_mask_fail": not image_data_right.is_save_mask, 
-             "left_mask": left_mask_name, "right_mask": right_mask_name}
+        self.reference_dict[frame_id] = {
+            "left_image": image_data_left.name, "right_image": image_data_right.name, 
+            "is_processed": True, 
+            "left_mask_fail": not image_data_left.is_save_mask, 
+            "right_mask_fail": not image_data_right.is_save_mask, 
+            "left_mask": left_mask_name, "right_mask": right_mask_name}
 
     def destructor(self):
         df = pd.DataFrame.from_dict(self.reference_dict, orient='index')
