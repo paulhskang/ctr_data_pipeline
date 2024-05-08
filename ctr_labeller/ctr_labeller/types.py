@@ -81,3 +81,41 @@ def load_stereo_image_data(left_path, right_path, test_num = None, already_proce
 def convert_mask_torch_to_opencv(sam_mask):
     h, w = sam_mask.shape[-2:]
     return sam_mask.reshape(h, w, 1) * 255
+
+from queue import Queue
+import threading
+
+class StereoImageDataQueue:
+    def __init__(self, size_to_get, size_maximum = 500):
+        self.queue = Queue(maxsize=size_maximum)
+        self.get_cv = threading.Condition()
+        self.size_to_get = size_to_get # 4
+        self.is_last_batch = False
+
+    # Assumes you don't add so much larger than size_to_add at a time.
+    # Is last batch logic only works if size_to_get == batch_size bad implementation
+    def add_images(self, stereo_images: List[StereoImageData2], is_last_batch = False):
+        with self.get_cv:
+            for stereo_image in stereo_images:
+                self.queue.put(stereo_image)
+            print("queue_size", self.queue.qsize())
+            print("size to get", self.size_to_get)
+            if self.queue.qsize() >= self.size_to_get:
+                print("notifying...")
+                self.get_cv.notify_all()
+        self.is_last_batch = is_last_batch
+        if is_last_batch:
+            self.size_to_get = 10000
+
+    def wait_for_at_least_size_to_get_and_get_images(self):
+        stereo_images_return = []
+        with self.get_cv:
+            if not self.is_last_batch:
+                print("waiting...")
+                self.get_cv.wait_for(lambda : self.queue.qsize() >= self.size_to_get) # Should add or sigint handler
+                print("done waiting ... ")
+            i = 0
+            while i < self.size_to_get and self.queue.qsize() > 0:
+                i += 1
+                stereo_images_return.append(self.queue.get())
+        return stereo_images_return

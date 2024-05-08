@@ -184,3 +184,4 @@ class SAMBatchedPredictor:
             elif self.sort_based_on == "lowest_area_ratio":
                 image_data.prediction_outputs = sorted(image_data.prediction_outputs, key=operator.attrgetter('area_ratio'))
             image_data.current_mask_idx = 0
+
