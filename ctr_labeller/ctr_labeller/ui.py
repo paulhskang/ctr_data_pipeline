@@ -221,11 +221,11 @@ class CTRLabellerApp(tk.Tk):
         # State data
         self.img_idx = 0
         self.is_done = False
-        self.stereo_image_data = None
+        self.stereo_image_datas = None
 
-    def set_stereo_image_data(self, stereo_image_data):
+    def set_stereo_image_datas(self, stereo_image_datas):
         self.img_idx = 0
-        self.stereo_image_data = stereo_image_data
+        self.stereo_image_datas = stereo_image_datas
         self.is_done = self.__present_next()
             
     # Return value
@@ -235,16 +235,17 @@ class CTRLabellerApp(tk.Tk):
         selection_idx = 0
 
         while(True):
-            if not self.data_saver.check_is_mask_processed(self.stereo_image_data.frame_ids[self.img_idx]):
+            stereo_image_data = self.stereo_image_datas[self.img_idx]
+            if not self.data_saver.check_is_mask_processed(stereo_image_data.frame_id):
                 self.selections[selection_idx].set_context(
-                    self.stereo_image_data.frame_ids[self.img_idx],
-                    self.stereo_image_data.left[self.img_idx],
-                    self.stereo_image_data.right[self.img_idx])
+                    stereo_image_data.frame_id,
+                    stereo_image_data.left,
+                    stereo_image_data.right)
                 selection_idx += 1
             self.img_idx += 1
             # Checks
             is_selection_over = selection_idx >= self.selection_num
-            is_img_idx_over = self.img_idx >= len(self.stereo_image_data.left)
+            is_img_idx_over = self.img_idx >= len(self.stereo_image_datas)
             if is_selection_over:
                 return is_img_idx_over # There is a next iteration
             if is_img_idx_over: # selection not over

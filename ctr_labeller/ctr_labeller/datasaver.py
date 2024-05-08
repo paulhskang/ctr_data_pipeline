@@ -23,7 +23,7 @@ class DataSaver:
         if not os.path.exists(self.mask_path): # Means no format path
             os.mkdir(self.mask_path)
 
-        atexit.register(self.destructor)
+        atexit.register(self.__destructor)
 
     def check_is_mask_processed(self, frame_id):
         if not frame_id in self.reference_dict:
@@ -34,7 +34,7 @@ class DataSaver:
             return False
         return is_processed
 
-    def save_current_mask(self, image_data):
+    def __save_current_mask(self, image_data):
         mask_name = "mask_{}".format(image_data.name)
         fullpath_mask = os.path.join(self.mask_path, "mask_{}".format(image_data.name))
         # if os.path.exists(fullpath_mask): # Not working properly
@@ -51,10 +51,10 @@ class DataSaver:
     def save_current_stereo_masks(self, frame_id, image_data_left, image_data_right):
         left_mask_name = ""
         if image_data_left.is_save_mask:
-            left_mask_name = self.save_current_mask(image_data_left)
+            left_mask_name = self.__save_current_mask(image_data_left)
         right_mask_name = ""
         if image_data_right.is_save_mask:
-            right_mask_name = self.save_current_mask(image_data_right)
+            right_mask_name = self.__save_current_mask(image_data_right)
         self.reference_dict[frame_id] = {
             "left_image": image_data_left.name, "right_image": image_data_right.name, 
             "is_processed": True, 
@@ -62,7 +62,7 @@ class DataSaver:
             "right_mask_fail": not image_data_right.is_save_mask, 
             "left_mask": left_mask_name, "right_mask": right_mask_name}
 
-    def destructor(self):
+    def __destructor(self):
         df = pd.DataFrame.from_dict(self.reference_dict, orient='index')
         df.index.name = "frame_id"
         df.to_csv(self.reference_file_path)
