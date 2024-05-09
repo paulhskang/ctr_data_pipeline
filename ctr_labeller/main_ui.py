@@ -3,20 +3,10 @@ import matplotlib.pyplot as plt
 import torch
 import threading
 
-from ctr_labeller.types import StereoImageDataQueue
 from ctr_labeller.ui import CTRLabellerApp, CTRLabellerAppConfig
 from ctr_labeller.predictor import SAMBatchedPredictor
 from ctr_labeller.config.utils import parse_config, configure
-from ctr_labeller.dataset import StereoDataloader
-
-def show_mask(mask, ax, random_color=False):
-    if random_color:
-        color = np.concatenate([np.random.random(3), np.array([0.6])], axis=0)
-    else:
-        color = np.array([30/255, 144/255, 255/255, 0.6])
-    h, w = mask.shape[-2:]
-    mask_image = mask.reshape(h, w, 1) * color.reshape(1, 1, -1)
-    ax.imshow(mask_image)
+from ctr_labeller.dataset import StereoDataSet
 
 def show_points(coords, labels, ax, marker_size=375):
     pos_points = coords[labels==1]
@@ -41,11 +31,11 @@ def debug_input(image, input_box, input_point = None):
 class CTRLabellerConfig:
     data_path: str
     app_config: CTRLabellerAppConfig
+    save_root_path: str  
+    prefix_left: str  
+    prefix_right: str
     debug_inputs: bool = True
-    apply_mask: bool = True
-    test_num: int = -1
     sort_based_on: str = "None"
-    save_root_path: str = ""
 
 class SAMBatchedPredictorThread(threading.Thread):
     def __init__(self, datasaver, stereo_image_queue, dataloader, config, left_input_prompts, right_input_prompts):
@@ -63,22 +53,21 @@ class SAMBatchedPredictorThread(threading.Thread):
     def run(self):
         num = 0
         batch_len = len(self.dataloader)
-        print("batch_len: ", batch_len)
+        print("SAMBatchedPredictorThread | batch_len: ", batch_len)
         is_last_batch = False
         batch_idx = 0
         for batch in self.dataloader:
             num = num + len(batch)
             if batch_idx >= batch_len - 1:
                 is_last_batch = True
-            print("before")
+            print("SAMBatchedPredictorThread | predicting batch_idx: {} ".format(batch_idx))
             stereo_image_datas = self.predictor.predict_stereo(batch, self.left_input_prompts, self.right_input_prompts)
-            print("after")
-            stereo_image_queue.add_images(stereo_image_datas, is_last_batch)
+            self.stereo_image_queue.add_images(stereo_image_datas, is_last_batch)
             batch_idx += 1
+        print ("SAMBatchedPredictorThread | ------ BATCH IS DONE ------")
 
-        print ("------ BATCH IS DONE ------ ")
-if __name__ == "__main__":
-    # Config
+def main():
+   # Config
     config = parse_config(CTRLabellerConfig, yaml_arg='--config')
 
     # SAM Input
@@ -90,7 +79,10 @@ if __name__ == "__main__":
     #     plt.show()
 
     grid_num = config.app_config.selection_grid_size[0] * config.app_config.selection_grid_size[1]
-    stereo_image_dataset = StereoDataloader(config.save_root_path, "cam1_", "cam2_")
+    stereo_image_dataset = StereoDataSet(config.save_root_path, config.prefix_left, config.prefix_right)
+    if len(stereo_image_dataset) == 0:
+        print("Dataset has all been processed or empty, terminating!!!")
+        return
     loader = torch.utils.data.DataLoader(stereo_image_dataset, batch_size=grid_num,
                                          pin_memory=True, num_workers=4, shuffle=False)
 
@@ -125,15 +117,16 @@ if __name__ == "__main__":
         }
     ]
 
-    stereo_image_queue = StereoImageDataQueue(size_to_get=grid_num)
+    app = CTRLabellerApp(config.app_config, stereo_image_dataset.datasaver)
     predictor_thread = SAMBatchedPredictorThread(
-        stereo_image_dataset.datasaver, stereo_image_queue,
+        stereo_image_dataset.datasaver, app.stereo_image_queue,
         loader, config, left_input_prompts, right_input_prompts)
 
-    # Start the app
-    app = CTRLabellerApp(config.app_config, stereo_image_dataset.datasaver, stereo_image_queue)
+    app.start()
     app.title("CTR SAM Labeller, press [n] to save and proceed with next set")
-
-    app.bind("n", app.keypress_event)
     app.mainloop()
     predictor_thread.join()
+    return
+
+if __name__ == "__main__":
+    main()

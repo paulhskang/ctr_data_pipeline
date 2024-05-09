@@ -28,8 +28,9 @@ class DataSaver:
     def check_is_mask_processed(self, frame_id):
         if not frame_id in self.reference_dict:
             return False
+        if not "is_processed" in self.reference_dict[frame_id]:
+            return False    
         is_processed = self.reference_dict[frame_id]["is_processed"]
-        # print("frame_id {}: ".format(frame_id), is_processed)
         if pd.isna(is_processed):
             return False
         return is_processed

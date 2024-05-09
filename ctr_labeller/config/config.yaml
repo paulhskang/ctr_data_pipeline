@@ -7,11 +7,7 @@ app_config:
   frame_pady: 10
 
 save_root_path: "data/ctr_capture_apr_25_24"
+prefix_left: "cam1_"
+prefix_right: "cam2_"
 debug_inputs: False
-apply_mask: True
-test_num: -1 # Set to -1, for all
 sort_based_on: "highest_score"
-
-# SAM Predictor
-# batch_size: 1000 # Data loading into memory, and inference
-

@@ -98,24 +98,19 @@ class StereoImageDataQueue:
         with self.get_cv:
             for stereo_image in stereo_images:
                 self.queue.put(stereo_image)
-            print("queue_size", self.queue.qsize())
-            print("size to get", self.size_to_get)
             if self.queue.qsize() >= self.size_to_get:
-                print("notifying...")
                 self.get_cv.notify_all()
         self.is_last_batch = is_last_batch
-        if is_last_batch:
-            self.size_to_get = 10000
 
     def wait_for_at_least_size_to_get_and_get_images(self):
         stereo_images_return = []
         with self.get_cv:
             if not self.is_last_batch:
-                print("waiting...")
+                print("StereoImageDataQueue | waiting ... ")
                 self.get_cv.wait_for(lambda : self.queue.qsize() >= self.size_to_get) # Should add or sigint handler
-                print("done waiting ... ")
+                print("StereoImageDataQueue | finished waiting ... ")
             i = 0
             while i < self.size_to_get and self.queue.qsize() > 0:
-                i += 1
                 stereo_images_return.append(self.queue.get())
+                i += 1
         return stereo_images_return

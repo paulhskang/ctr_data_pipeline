@@ -103,17 +103,15 @@ class SAMBatchedPredictor:
         for i in range(batch_size):
             batched_input = []
             self.__append_to_batch(batched_input, batch_data["left_image"][i] , left_input_prompts)
-            print(batched_input)
             batched_output = self.sam(batched_input, multimask_output=False)
-            print(batched_output)
-            left_image_data = ImageData(batch_data["left_image"][i].cpu().detach().numpy(), batch_data["left_image_name"][i])
+            left_image_data = ImageData(batch_data["left_image"][i].cpu().detach().numpy(), batch_data["left_image_name"][i].item())
             collect_prediction_outputs(left_image_data, batched_output, left_input_prompts)
             input('hehe')
 
             batched_input = []
             self.__append_to_batch(batched_input, batch_data["right_image"][i] , right_input_prompts)
             batched_output = self.sam(batched_input, multimask_output=False)
-            right_image_data = ImageData(batch_data["right_image"][i].cpu().detach().numpy(), batch_data["right_image_name"][i])
+            right_image_data = ImageData(batch_data["right_image"][i].cpu().detach().numpy(), batch_data["right_image_name"][i].item())
             collect_prediction_outputs(right_image_data, batched_output, right_input_prompts)
             stereo_image_datas.append(StereoImageData2(frame_id=batch_data["frame_id"][i], left=left_image_data, right=right_image_data))
         return stereo_image_datas
@@ -148,13 +146,17 @@ class SAMBatchedPredictor:
         batch_size = len(batch_data["frame_id"])
         stereo_image_datas = []
         for i in range(batch_size):
-            if self.data_saver.check_is_mask_processed(batch_data["frame_id"][i]):
+            frame_id = batch_data["frame_id"][i].item()
+            if self.data_saver.check_is_mask_processed(frame_id):
                 continue
-            left_image_data = ImageData(batch_data["left_image"][i].cpu().detach().numpy(), batch_data["left_image_name"][i])
+            left_image_data = ImageData(batch_data["left_image"][i].cpu().detach().numpy(),
+                                        batch_data["left_image_name"][i])
             self.predict_one(left_image_data, left_input_prompts)
-            right_image_data = ImageData(batch_data["right_image"][i].cpu().detach().numpy(), batch_data["right_image_name"][i])
+            right_image_data = ImageData(batch_data["right_image"][i].cpu().detach().numpy(),
+                                         batch_data["right_image_name"][i])
             self.predict_one(right_image_data, right_input_prompts)
-            stereo_image_datas.append(StereoImageData2(frame_id=batch_data["frame_id"][i], left=left_image_data, right=right_image_data))
+            stereo_image_datas.append(
+                StereoImageData2(frame_id=frame_id, left=left_image_data, right=right_image_data))
         return stereo_image_datas
 
     def predict(self, image_datas: List[ImageData], frame_ids: List[str], input_prompts: List[dict]):

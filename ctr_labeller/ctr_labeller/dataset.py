@@ -6,7 +6,7 @@ import numpy as np
 
 from ctr_labeller.datasaver import DataSaver
 
-class StereoDataloader(torch.utils.data.Dataset):
+class StereoDataSet(torch.utils.data.Dataset):
     def __init__(self, root_path, left_prefix, right_prefix, filetype = "png") -> None:
         self.datasaver = DataSaver(root_path, must_have_csv=True)
         self.root_path = root_path
@@ -21,6 +21,7 @@ class StereoDataloader(torch.utils.data.Dataset):
                 "left_image_path": os.path.join(root_path, value["left_image"]),
                 "right_image_name": value["right_image"],
                 "right_image_path": os.path.join(root_path, value["right_image"])})
+
 
     def __len__(self):
         return len(self.frame_infos)

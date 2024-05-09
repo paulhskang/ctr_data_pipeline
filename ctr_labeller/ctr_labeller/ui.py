@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import tkinter as tk
 from typing import Tuple
+import threading
 from PIL import ImageTk, Image
 
 from ctr_labeller.config.utils import configure
@@ -205,14 +206,14 @@ class CTRLabellerAppConfig:
     frame_pady: int = 10
 
 class CTRLabellerApp(tk.Tk):
-    def __init__(self, config: CTRLabellerAppConfig, data_saver: DataSaver,
-                 stereo_image_queue: StereoImageDataQueue, *args, **kwargs):
+    def __init__(self, config: CTRLabellerAppConfig, data_saver: DataSaver, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
-        self.stereo_image_queue = stereo_image_queue
         self.config = config
-        self.data_saver = data_saver
         self.selection_num = self.config.selection_grid_size[0] * self.config.selection_grid_size[1]
+        self.stereo_image_queue =  StereoImageDataQueue(size_to_get=self.selection_num)
+
+        self.data_saver = data_saver
         self.selections = []
         for i in range(self.config.selection_grid_size[0]):
             for j in range(self.config.selection_grid_size[1]):
@@ -223,7 +224,10 @@ class CTRLabellerApp(tk.Tk):
 
         # State data
         self.img_idx = 0
-        self.__present_next()
+
+    def start(self):
+        self.__disable_all()
+        self.bind("n", self.keypress_event)
 
     # def set_stereo_image_datas(self, stereo_image_datas):
     #     self.img_idx = 0
@@ -234,19 +238,20 @@ class CTRLabellerApp(tk.Tk):
     # False: There is more iterations
     # True: The iterations are done
     def __present_next(self):
+        # This obtains max self.selection_num
         stereo_image_datas = self.stereo_image_queue.wait_for_at_least_size_to_get_and_get_images()
 
-        i = 0
-        while i < len(stereo_image_datas):
-            stereo_image_data = stereo_image_datas[i]
-            if not self.data_saver.check_is_mask_processed(stereo_image_data.frame_id):
-                self.selections[i].set_context(
-                    stereo_image_data.frame_id,
-                    stereo_image_data.left,
-                    stereo_image_data.right)
-            i+=1
+        selection_idx = 0
+        for stereo_image_data in stereo_image_datas:
+            if self.data_saver.check_is_mask_processed(stereo_image_data.frame_id):
+                continue
+            self.selections[selection_idx].set_context(
+                stereo_image_data.frame_id,
+                stereo_image_data.left,
+                stereo_image_data.right)
+            selection_idx += 1
+
         # Assumes there is at least one previous selection
-        selection_idx = i + 1
         while selection_idx < self.selection_num:
             self.selections[selection_idx].disable_context(
                 self.selections[selection_idx-1].left_image_selection.image_x, 
@@ -255,7 +260,7 @@ class CTRLabellerApp(tk.Tk):
         return
 
     def __save_selections(self):
-        print("Saving selections")
+        # print("CTRLabellerApp | Saving selections")
         for selection in self.selections:
             if not selection.is_active:
                 continue
@@ -267,8 +272,12 @@ class CTRLabellerApp(tk.Tk):
             self.selections[i].disable_context(4, 4)
 
     def keypress_event(self, input):
+        self.unbind("n") # Disable multiple keypresses, if this is not done
         # print(type(input)) # What is tkinter giving here?
         self.__save_selections() # Save the currently presented from __present_next()
         self.__disable_all()
+
+        self.update()
         self.__present_next()
-        print("Presenting next set of images")
+        # print("CTRLabellerApp | Presenting next set of images")
+        self.bind("n", self.keypress_event) # Bind again
