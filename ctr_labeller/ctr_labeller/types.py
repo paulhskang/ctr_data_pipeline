@@ -86,31 +86,27 @@ from queue import Queue
 import threading
 
 class StereoImageDataQueue:
-    def __init__(self, size_to_get, size_maximum = 500):
-        self.queue = Queue(maxsize=size_maximum)
-        self.get_cv = threading.Condition()
-        self.size_to_get = size_to_get # 4
-        self.is_last_batch = False
+    def __init__(self, max_size_to_add):
+        self.queue = Queue(maxsize=max_size_to_add*2)
+        self.add_cv = threading.Condition()
+        self.max_size_to_add = max_size_to_add
 
-    # Assumes you don't add so much larger than size_to_add at a time.
-    # Is last batch logic only works if size_to_get == batch_size bad implementation
-    def add_images(self, stereo_images: List[StereoImageData2], is_last_batch = False):
-        with self.get_cv:
+    # Assumes List is not that large of a size at a time. i.e. > 100
+    def wait_add_images(self, stereo_images: List[StereoImageData2]):
+        with self.add_cv:
+            print("StereoImageDataQueue | waiting to add ... ")
+            self.add_cv.wait_for(lambda : self.queue.qsize() < self.max_size_to_add) # Should add or sigint handler
+            print("StereoImageDataQueue | finished waiting to add ... ")
             for stereo_image in stereo_images:
                 self.queue.put(stereo_image)
-            if self.queue.qsize() >= self.size_to_get:
-                self.get_cv.notify_all()
-        self.is_last_batch = is_last_batch
 
-    def wait_for_at_least_size_to_get_and_get_images(self):
+    def get_any_available_images_up_to(self, max_size_to_get):
         stereo_images_return = []
-        with self.get_cv:
-            if not self.is_last_batch:
-                print("StereoImageDataQueue | waiting ... ")
-                self.get_cv.wait_for(lambda : self.queue.qsize() >= self.size_to_get) # Should add or sigint handler
-                print("StereoImageDataQueue | finished waiting ... ")
+        with self.add_cv:
             i = 0
-            while i < self.size_to_get and self.queue.qsize() > 0:
+            while i < max_size_to_get and self.queue.qsize() > 0:
                 stereo_images_return.append(self.queue.get())
                 i += 1
+            if self.queue.qsize() < self.max_size_to_add:
+                self.add_cv.notify_all()
         return stereo_images_return

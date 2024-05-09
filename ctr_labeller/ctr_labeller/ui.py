@@ -14,7 +14,7 @@ NO_IMAGE_NAME = "No Image"
 NO_MASK_NAME = "No Mask"
 
 class ImageSelection(tk.Frame):
-    def __init__(self, root, draw_height_px,
+    def __init__(self, root, draw_height_py,
                  visualize_input_prompt: bool = False, zoom_factor: float = 2.0):
         tk.Frame.__init__(self, master=root)
 
@@ -26,7 +26,7 @@ class ImageSelection(tk.Frame):
         self.canvas.grid(row=0, column=0)
         self.canvas.bind("<Button-1>", self.on_click_toggle_zoom)
     
-        self.draw_height_px = draw_height_px
+        self.draw_height_py = draw_height_py
 
         # Label Frame
         self.label_frame = tk.Frame(self)
@@ -46,22 +46,22 @@ class ImageSelection(tk.Frame):
         
         ## Zoom Button
         # self.toggle_zoom_button = tk.Button(self.button_frame, text ="Zoom to Mask", command = self.toggle_zoom,
-        #                                state="disabled", height=self.draw_height_px//scaler)
+        #                                state="disabled", height=self.draw_height_py//scaler)
         # self.toggle_zoom_button.grid(row=0, column=0, sticky="nsew")
         
         ## Toggle Button
         self.toggle_mask_button = tk.Button(self.button_frame, text ="Toggle Mask", command = self.toggle_mask,
-                                       state="disabled", height=self.draw_height_px//scaler)
+                                       state="disabled", height=self.draw_height_py//scaler)
         self.toggle_mask_button.grid(row=0, column=0, sticky="nsew")
         
         ## Select button
         self.is_select_var = tk.BooleanVar(value=True) # Image is to be saved by default
         self.save_img_check_button = tk.Checkbutton(self.button_frame, \
             text = "Save Mask?", variable = self.is_select_var, \
-            onvalue = True, offvalue = False, state="disabled", height=draw_height_px//scaler)
+            onvalue = True, offvalue = False, state="disabled", height=draw_height_py//scaler)
         self.save_img_check_button.grid(row=0, column=1, sticky="nsew")
 
-        blank_image = np.zeros((self.draw_height_px , self.draw_height_px , 3), np.uint8)
+        blank_image = np.zeros((self.draw_height_py , self.draw_height_py , 3), np.uint8)
         self.current_image  = self.__draw_img_impl(blank_image)
         
         # State data
@@ -69,8 +69,8 @@ class ImageSelection(tk.Frame):
         self.is_zoomed = False
     
     def __resize_img_to_window(self, img):
-        scale = img.shape[1]/self.draw_height_px
-        return cv2.resize(img, (self.draw_height_px, int(img.shape[0]//scale)), interpolation=cv2.INTER_LINEAR)
+        scale = img.shape[1]/self.draw_height_py
+        return cv2.resize(img, (self.draw_height_py, int(img.shape[0]//scale)), interpolation=cv2.INTER_LINEAR)
         
     def __draw_img_impl(self, img):
         img = self.__resize_img_to_window(img)
@@ -161,7 +161,7 @@ class ImageSelection(tk.Frame):
             self.__draw_img_impl(self.current_image)
 
 class StereoImageSelection(tk.Frame):
-    def __init__(self, root, draw_height_px, 
+    def __init__(self, root, draw_height_py, 
                  visualize_input_prompt: bool = False, zoom_factor: float = 2.0):
         tk.Frame.__init__(self, master=root)
 
@@ -170,10 +170,10 @@ class StereoImageSelection(tk.Frame):
 
         # Image and label
         self.left_image_selection = ImageSelection(self.image_frame,
-                                                   draw_height_px, visualize_input_prompt, zoom_factor)
+                                                   draw_height_py, visualize_input_prompt, zoom_factor)
         self.left_image_selection.grid(row=0, column=0)
         self.right_image_selection = ImageSelection(self.image_frame,
-                                                    draw_height_px, visualize_input_prompt, zoom_factor)
+                                                    draw_height_py, visualize_input_prompt, zoom_factor)
         self.right_image_selection.grid(row=0, column=1)
         self.current_frame_id = -1
         self.is_activate = False
@@ -201,23 +201,24 @@ class CTRLabellerAppConfig:
     visualize_input_prompt: bool = False
     zoom_factor: float = 2.0
     selection_grid_size: Tuple[int, int] = (1, 1)
-    selection_image_height_px: int = 1200
+    selection_image_height_py: int = 1200
     frame_padx: int = 10
     frame_pady: int = 10
 
 class CTRLabellerApp(tk.Tk):
-    def __init__(self, config: CTRLabellerAppConfig, data_saver: DataSaver, *args, **kwargs):
+    def __init__(self, config: CTRLabellerAppConfig, data_saver: DataSaver, 
+                 stereo_image_queue: StereoImageDataQueue, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
 
         self.config = config
         self.selection_num = self.config.selection_grid_size[0] * self.config.selection_grid_size[1]
-        self.stereo_image_queue =  StereoImageDataQueue(size_to_get=self.selection_num)
+        self.stereo_image_queue = stereo_image_queue
 
         self.data_saver = data_saver
         self.selections = []
         for i in range(self.config.selection_grid_size[0]):
             for j in range(self.config.selection_grid_size[1]):
-                selection = StereoImageSelection(self, self.config.selection_image_height_px,
+                selection = StereoImageSelection(self, self.config.selection_image_height_py,
                                                  self.config.visualize_input_prompt, self.config.zoom_factor)
                 selection.grid(row=i, column=j, padx=self.config.frame_padx, pady=self.config.frame_pady)
                 self.selections.append(selection)
@@ -239,7 +240,7 @@ class CTRLabellerApp(tk.Tk):
     # True: The iterations are done
     def __present_next(self):
         # This obtains max self.selection_num
-        stereo_image_datas = self.stereo_image_queue.wait_for_at_least_size_to_get_and_get_images()
+        stereo_image_datas = self.stereo_image_queue.get_any_available_images_up_to(self.selection_num)
 
         selection_idx = 0
         for stereo_image_data in stereo_image_datas:
@@ -251,11 +252,10 @@ class CTRLabellerApp(tk.Tk):
                 stereo_image_data.right)
             selection_idx += 1
 
-        # Assumes there is at least one previous selection
         while selection_idx < self.selection_num:
             self.selections[selection_idx].disable_context(
-                self.selections[selection_idx-1].left_image_selection.image_x, 
-                self.selections[selection_idx-1].left_image_selection.image_y)
+                self.config.selection_image_height_py * 9 // 16, 
+                self.config.selection_image_height_py)
             selection_idx += 1
         return
 
@@ -269,15 +269,14 @@ class CTRLabellerApp(tk.Tk):
 
     def __disable_all(self):
         for i in range(self.selection_num):
-            self.selections[i].disable_context(4, 4)
+            self.selections[i].disable_context(self.config.selection_image_height_py * 9 // 16, 
+                                               self.config.selection_image_height_py)
 
     def keypress_event(self, input):
-        self.unbind("n") # Disable multiple keypresses, if this is not done
         # print(type(input)) # What is tkinter giving here?
         self.__save_selections() # Save the currently presented from __present_next()
         self.__disable_all()
 
         self.update()
         self.__present_next()
-        # print("CTRLabellerApp | Presenting next set of images")
-        self.bind("n", self.keypress_event) # Bind again
+        print("CTRLabellerApp | Presenting next set of images")

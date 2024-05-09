@@ -7,6 +7,7 @@ from ctr_labeller.ui import CTRLabellerApp, CTRLabellerAppConfig
 from ctr_labeller.predictor import SAMBatchedPredictor
 from ctr_labeller.config.utils import parse_config, configure
 from ctr_labeller.dataset import StereoDataSet
+from ctr_labeller.types import StereoImageDataQueue
 
 def show_points(coords, labels, ax, marker_size=375):
     pos_points = coords[labels==1]
@@ -36,6 +37,7 @@ class CTRLabellerConfig:
     prefix_right: str
     debug_inputs: bool = True
     sort_based_on: str = "None"
+    max_size_to_add: int = 40 # Depends on how much RAM on CPU to load images
 
 class SAMBatchedPredictorThread(threading.Thread):
     def __init__(self, datasaver, stereo_image_queue, dataloader, config, left_input_prompts, right_input_prompts):
@@ -54,16 +56,16 @@ class SAMBatchedPredictorThread(threading.Thread):
         num = 0
         batch_len = len(self.dataloader)
         print("SAMBatchedPredictorThread | batch_len: ", batch_len)
-        is_last_batch = False
+        # is_last_batch = False
         batch_idx = 0
         for batch in self.dataloader:
-            num = num + len(batch)
-            if batch_idx >= batch_len - 1:
-                is_last_batch = True
-            print("SAMBatchedPredictorThread | predicting batch_idx: {} ".format(batch_idx))
+            # if batch_idx >= batch_len - 1:
+            #     is_last_batch = True
+            print("SAMBatchedPredictorThread | predicting frame_ids: {} ".format(batch["frame_id"].cpu().detach().numpy()))
             stereo_image_datas = self.predictor.predict_stereo(batch, self.left_input_prompts, self.right_input_prompts)
-            self.stereo_image_queue.add_images(stereo_image_datas, is_last_batch)
+            self.stereo_image_queue.wait_add_images(stereo_image_datas)
             batch_idx += 1
+            num = num + len(batch)
         print ("SAMBatchedPredictorThread | ------ BATCH IS DONE ------")
 
 def main():
@@ -117,11 +119,12 @@ def main():
         }
     ]
 
-    app = CTRLabellerApp(config.app_config, stereo_image_dataset.datasaver)
+    stereo_image_queue = StereoImageDataQueue(max_size_to_add=config.max_size_to_add)
     predictor_thread = SAMBatchedPredictorThread(
-        stereo_image_dataset.datasaver, app.stereo_image_queue,
+        stereo_image_dataset.datasaver, stereo_image_queue,
         loader, config, left_input_prompts, right_input_prompts)
 
+    app = CTRLabellerApp(config.app_config, stereo_image_dataset.datasaver, stereo_image_queue)
     app.start()
     app.title("CTR SAM Labeller, press [n] to save and proceed with next set")
     app.mainloop()
