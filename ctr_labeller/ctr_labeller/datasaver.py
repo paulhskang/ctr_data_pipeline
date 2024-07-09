@@ -42,6 +42,9 @@ class DataSaver:
             return False
         return is_processed
 
+    def get_input_prompts(self):
+        return None
+
     def __save_current_mask(self, image_data):
         current_prediction_output = image_data.prediction_outputs[image_data.current_mask_idx]
 
