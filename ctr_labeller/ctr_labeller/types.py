@@ -17,7 +17,7 @@ class ImageData:
     # Loading
     image: np.ndarray
     name: str
-
+    path: str
     # Sam Processing
     current_mask_idx: int = -1
     prediction_outputs: List[PredictionOutput] = field(default_factory=lambda: [])
@@ -94,9 +94,9 @@ class StereoImageDataQueue:
     # Assumes List is not that large of a size at a time. i.e. > 100
     def wait_add_images(self, stereo_images: List[StereoImageData2]):
         with self.add_cv:
-            print("StereoImageDataQueue | waiting to add ... ")
+            # print("StereoImageDataQueue | waiting to add ... ")
             self.add_cv.wait_for(lambda : self.queue.qsize() < self.max_size_to_add) # Should add or sigint handler
-            print("StereoImageDataQueue | finished waiting to add ... ")
+            # print("StereoImageDataQueue | finished waiting to add ... ")
             for stereo_image in stereo_images:
                 self.queue.put(stereo_image)
 

@@ -150,10 +150,12 @@ class SAMBatchedPredictor:
             if self.data_saver.check_is_mask_processed(frame_id):
                 continue
             left_image_data = ImageData(batch_data["left_image"][i].cpu().detach().numpy(),
-                                        batch_data["left_image_name"][i])
+                                        batch_data["left_image_name"][i],
+                                        batch_data["left_image_path"][i])
             self.predict_one(left_image_data, left_input_prompts)
             right_image_data = ImageData(batch_data["right_image"][i].cpu().detach().numpy(),
-                                         batch_data["right_image_name"][i])
+                                         batch_data["right_image_name"][i],
+                                         batch_data["right_image_path"][i])
             self.predict_one(right_image_data, right_input_prompts)
             stereo_image_datas.append(
                 StereoImageData2(frame_id=frame_id, left=left_image_data, right=right_image_data))

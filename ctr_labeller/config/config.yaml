@@ -6,9 +6,7 @@ app_config:
   frame_padx: 10
   frame_pady: 10
 
-save_root_path: "data/ctr_capture_apr_25_24"
-prefix_left: "cam1_"
-prefix_right: "cam2_"
 debug_inputs: False
 sort_based_on: "highest_score"
 max_size_to_add: 40
+save_image_and_masks: False

@@ -7,21 +7,22 @@ import numpy as np
 from ctr_labeller.datasaver import DataSaver
 
 class StereoDataSet(torch.utils.data.Dataset):
-    def __init__(self, root_path, left_prefix, right_prefix, filetype = "png") -> None:
-        self.datasaver = DataSaver(root_path, must_have_csv=True)
+    def __init__(self, root_path, datasaver: DataSaver) -> None:
+        self.datasaver = datasaver
         self.root_path = root_path
         self.frame_infos = []
         for key, value in self.datasaver.reference_dict.items():
             # People online say you have to know beforehand how to organize your data into pytorch dataset
             if self.datasaver.check_is_mask_processed(key): 
                 continue
-            self.frame_infos.append({
-                "frame_id": key,
-                "left_image_name": value["left_image"],
-                "left_image_path": os.path.join(root_path, value["left_image"]),
-                "right_image_name": value["right_image"],
-                "right_image_path": os.path.join(root_path, value["right_image"])})
 
+            frame_info = {
+                "frame_id": key,
+                "left_image_path": os.path.join(root_path, value["left_image_path"]),
+                "right_image_path": os.path.join(root_path, value["right_image_path"])}
+            frame_info["left_image_name"] = os.path.split(frame_info["left_image_path"])[1]
+            frame_info["right_image_name"] = os.path.split(frame_info["right_image_path"])[1]
+            self.frame_infos.append(frame_info)
 
     def __len__(self):
         return len(self.frame_infos)

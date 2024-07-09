@@ -1,12 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 import torch
 import threading
+import pathlib
 
 from ctr_labeller.ui import CTRLabellerApp, CTRLabellerAppConfig
 from ctr_labeller.predictor import SAMBatchedPredictor
 from ctr_labeller.config.utils import parse_config, configure
 from ctr_labeller.dataset import StereoDataSet
+from ctr_labeller.datasaver import DataSaver
 from ctr_labeller.types import StereoImageDataQueue
 
 def show_points(coords, labels, ax, marker_size=375):
@@ -32,10 +35,8 @@ def debug_input(image, input_box, input_point = None):
 class CTRLabellerConfig:
     data_path: str
     app_config: CTRLabellerAppConfig
-    save_root_path: str  
-    prefix_left: str  
-    prefix_right: str
     debug_inputs: bool = True
+    save_image_and_masks: bool = True
     sort_based_on: str = "None"
     max_size_to_add: int = 40 # Depends on how much RAM on CPU to load images
 
@@ -81,7 +82,10 @@ def main():
     #     plt.show()
 
     grid_num = config.app_config.selection_grid_size[0] * config.app_config.selection_grid_size[1]
-    stereo_image_dataset = StereoDataSet(config.save_root_path, config.prefix_left, config.prefix_right)
+
+    full_data_path = os.path.join(pathlib.Path(__file__).parent.resolve(), config.data_path)
+    data_saver = DataSaver(full_data_path, must_have_csv=True, save_image_and_masks= config.save_image_and_masks)
+    stereo_image_dataset = StereoDataSet(full_data_path, data_saver)
     if len(stereo_image_dataset) == 0:
         print("Dataset has all been processed or empty, terminating!!!")
         return
