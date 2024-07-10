@@ -1,5 +1,4 @@
 app_config:
-  visualize_input_prompt: True
   zoom_factor: 2.0
   selection_grid_size:  [2, 1]
   selection_image_height_py: 700

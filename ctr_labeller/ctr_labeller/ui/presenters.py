@@ -3,6 +3,8 @@ import copy
 import tkinter as tk
 from PIL import ImageTk, Image
 
+from ctr_labeller.ui.types import ImageSelectorState
+
 def create_img_with_input_prompt(img, input_prompt):
     prompted_img = copy.deepcopy(img)
     if input_prompt["box"] is not None:
@@ -20,9 +22,8 @@ def create_img_with_input_prompt(img, input_prompt):
 class ImageSelectionPresenter(tk.Frame):
     NO_IMAGE_NAME = "No Image"
     NO_MASK_NAME = "No Mask"
-    def __init__(self, parent_frame, draw_height_py):
+    def __init__(self, parent_frame, state:ImageSelectorState):
         tk.Frame.__init__(self, master=parent_frame)
-        self.draw_height_py = draw_height_py
         # Canvas Frame
         self.canvas = tk.Canvas(self)
         self.canvas.grid(row=0, column=0)
@@ -37,9 +38,22 @@ class ImageSelectionPresenter(tk.Frame):
 
         self.mask_label = tk.Label(self.label_frame, text=self.NO_MASK_NAME, bg="skyblue")
         self.mask_label.grid(row=0, column=1, ipadx=10, sticky="nsew")
-
+        
+        self.state = state
+        self.state.canvas = self.canvas
+        self.state.trigger_presenter_function = self.present_current_state
+        
+    def present_current_state(self):
+        img_to_draw = self.state.current_image
+        if self.state.is_zoomed:
+            img_to_draw = self.state.zoom_function(self.state.current_image)
+        self.draw_image(self.resize_image_to_window(img_to_draw))
+        self.set_image_label(self.state.current_image_label)
+        self.set_mask_label(self.state.current_mask_label)
+    
     def resize_image_to_window(self, image):
         scale = image.shape[1]/self.state.c_draw_height_py
+        self.state.resize_img_scale = scale
         return cv2.resize(image, (self.state.c_draw_height_py, int(image.shape[0]//scale)), interpolation=cv2.INTER_LINEAR)
        
     def draw_image(self, image):
@@ -66,26 +80,42 @@ class ImageSelectionPresenter(tk.Frame):
         self.mask_label.configure(text=text)
 
 class StereoImagePresenter(tk.Frame):
-    def __init__(self, parent_frame, draw_height_py):
+    def __init__(self, parent_frame, left_image_state, right_image_state):
         tk.Frame.__init__(self, master=parent_frame)
         self.image_frame = tk.Frame(self)
         self.image_frame.grid(row=0, column=0)
-        self.left = ImageSelectionPresenter(self.image_frame, draw_height_py)
+        self.left = ImageSelectionPresenter(self.image_frame, left_image_state)
         self.left.grid(row=0, column=0)
-        self.right = ImageSelectionPresenter(self.image_frame, draw_height_py)
+        self.right = ImageSelectionPresenter(self.image_frame, right_image_state)
         self.right.grid(row=0, column=1)
 
-    #     self.image_frame = tk.Frame(self)
-    #     self.image_frame.grid(row=0, column=0)
+    def present_current_state(self):
+        self.left.present_current_state()
+        self.right.present_current_state()
 
-    #     # Image and label
-    #     isc = ImageSelectionConfig(mask_widget=True, save_widget=True,
-    #                                click_event_type=ClickEventType.ZOOM, draw_height_py=draw_height_py,
-    #                                visualize_input_prompt=visualize_input_prompt, zoom_factor=zoom_factor)
-    #     self.left_image_selection = ImageSelection(self.image_frame, isc)
-    #     self.left_image_selection.grid(row=0, column=0)
-    #     self.right_image_selection = ImageSelection(self.image_frame, isc)
-    #     self.right_image_selection.grid(row=0, column=1)
-    #     self.current_frame_id = -1
-    #     self.is_active = False
+class OrganizedButtonGenerator(tk.Frame):
+    def __init__(self, parent_frame, button_frame_location, max_col = 4):
+        tk.Frame.__init__(self, master=parent_frame)
+        self.button_frame = tk.Frame(parent_frame)
+        self.grid(row=button_frame_location[0], column=button_frame_location[1], sticky="nsew")
+        self.max_col = max_col
+        self.current_row_idx = 0
+        self.current_col_idx = 0
 
+    def _organize_button(self, button):
+        button.grid(row=self.current_row_idx, column=self.current_col_idx, sticky="nsew")
+        self.current_col_idx += 1
+        if self.current_col_idx == self.max_col:
+            self.current_row_idx += 1
+            self.current_col_idx = 0
+        
+    def create_check_button(self, **kwargs):
+        select_var =  tk.BooleanVar(value=True)
+        check_button = tk.Checkbutton(self, variable=select_var, **kwargs)
+        self._organize_button(check_button)
+        return check_button, select_var
+    
+    def create_button(self, **kwargs):
+        button = tk.Button(self, **kwargs)
+        self._organize_button(button)
+        return button

@@ -5,7 +5,7 @@ import torch
 import threading
 import pathlib
 
-from ctr_labeller.ui import CTRLabellerApp, CTRLabellerAppConfig
+from ctr_labeller.ui.apps import CTRLabellerApp, CTRLabellerAppConfig
 from ctr_labeller.input_prompt_ui import InputPromptGenerationApp
 from ctr_labeller.predictor import SAMBatchedPredictor
 from ctr_labeller.config.utils import parse_config, configure
