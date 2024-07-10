@@ -35,7 +35,7 @@ class MaskWidget():
         self.mask_label = tk.Label(label_parent_frame, text=self.NO_MASK_NAME, bg="skyblue")
         self.mask_label.grid(row=label_row, column=label_column, ipadx=10, sticky="nsew")
 
-        self.toggle_mask_button = tk.Button(button_frame, text ="Toggle Mask", command = self._toggle_mask,
+        self.toggle_mask_button = tk.Button(button_frame, text ="Toggle Mask", command = self.__toggle_mask,
                                        state="disabled", height=parent_state.c_draw_height_py//parent_state.c_scaler)
         self.toggle_mask_button.grid(row=button_row, column=button_column, sticky="nsew")
         self.draw_function = draw_function
@@ -59,7 +59,7 @@ class MaskWidget():
         self.mask_label.configure(text=self.NO_MASK_NAME)
         self.toggle_mask_button.configure(state="disabled")
 
-    def _toggle_mask(self):
+    def __toggle_mask(self):
         self.parent_state.is_zoomed = False
         image_data = self.parent_state.current_image_data
         if len(image_data.prediction_outputs) < 1:
@@ -91,7 +91,30 @@ class SaveWidget():
         self.is_select_var.set(True)
         self.save_img_check_button.configure(state="disabled")
 
+class ClickZoomWidget():
+    def __init__(self, canvas, draw_function, parent_state):
+        self.draw_function = draw_function
+        self.parent_state = parent_state
+        canvas.bind("<Button-1>", self.__on_click_toggle_zoom)
+
+    def __create_zoomed_image(self, img, px, py):        
+        new_h = int(img.shape[0] // self.parent_state.c_zoom_factor)
+        new_w = int(img.shape[1] // self.parent_state.c_zoom_factor)
+
+        y = np.clip(py - new_h // 2, 0, img.shape[0])
+        x = np.clip(px - new_w // 2, 0, img.shape[1])
+
+        return img[y:y+new_h, x:x+new_w]
+    
+    def __on_click_toggle_zoom(self, event):
+        self.parent_state.is_zoomed = not self.parent_state.is_zoomed
+        if self.parent_state.is_zoomed:
+            self.draw_function(self.__create_zoomed_image(self.parent_state.current_image, event.x, event.y))
+        else: # Not zoomed
+            self.draw_function(self.parent_state.current_image)
+
 class ClickEventType(Enum):
+    NONE = -1
     ZOOM = 1
     KEYPOINT_AND_BOUNDING_BOX_GENERATION = 2
 
@@ -128,7 +151,6 @@ class ImageSelection(tk.Frame):
         # Canvas Frame
         self.canvas = tk.Canvas(self)
         self.canvas.grid(row=0, column=0)
-        self.canvas.bind("<Button-1>", self.on_click_toggle_zoom)
     
         # Label Frame
         self.label_frame = tk.Frame(self)
@@ -148,10 +170,12 @@ class ImageSelection(tk.Frame):
         if config.save_widget:
             self.save_widget = SaveWidget(self.button_frame, 0, 1, self.state)
 
+        if config.click_event_type == ClickEventType.ZOOM:
+            self.click_widget = ClickZoomWidget(self.canvas, self.__draw_img_impl, self.state)
+        
+        # Start state
         blank_image = np.zeros((self.state.c_draw_height_py , self.state.c_draw_height_py , 3), np.uint8)
         self.state.current_image  = self.__draw_img_impl(blank_image)
-        
-        # State data
         self.state.image_data = None
         self.state.is_zoomed = False
     
@@ -189,40 +213,9 @@ class ImageSelection(tk.Frame):
 
         if self.mask_widget:
             self.mask_widget.disable_context()
-
         if self.save_widget:
             self.save_widget.disable_context()
         self.state.is_zoomed = False
-
-    # def toggle_mask(self):
-    #     self.is_zoomed = False
-    #     if len(self.image_data.prediction_outputs) >= 1:
-    #         self.image_data.current_mask_idx = (self.image_data.current_mask_idx + 1) % len(self.image_data.prediction_outputs)
-    #         pred_output = self.image_data.prediction_outputs[self.image_data.current_mask_idx]
-    #         prompted_img = create_img_with_input_prompt(
-    #             pred_output.masked_image,
-    #             pred_output.input_prompt)
-    #         self.current_image = self.__draw_img_impl(prompted_img)
-    #         self.mask_label.configure(text="Mask: {},\nscore: {:.5f}, area_ratio: {:.5f}".format(
-    #             pred_output.input_prompt["name"],
-    #             pred_output.score,
-    #             pred_output.area_ratio))
-        
-    def __create_zoomed_image(self, img, px, py):        
-        new_h = int(img.shape[0] // self.state.c_zoom_factor)
-        new_w = int(img.shape[1] // self.state.c_zoom_factor)
-
-        y = np.clip(py - new_h // 2, 0, img.shape[0])
-        x = np.clip(px - new_w // 2, 0, img.shape[1])
-
-        return img[y:y+new_h, x:x+new_w]
-    
-    def on_click_toggle_zoom(self, event):
-        self.state.is_zoomed = not self.state.is_zoomed
-        if self.state.is_zoomed:
-            self.__draw_img_impl(self.__create_zoomed_image(self.state.current_image, event.x, event.y))
-        else: # Not zoomed
-            self.__draw_img_impl(self.state.current_image)
 
 class StereoImageSelection(tk.Frame):
     def __init__(self, root, draw_height_py, 
@@ -233,8 +226,9 @@ class StereoImageSelection(tk.Frame):
         self.image_frame.grid(row=0, column=0)
 
         # Image and label
-        isc = ImageSelectionConfig(True, True, ClickEventType.ZOOM, draw_height_py=draw_height_py,
-                             visualize_input_prompt=visualize_input_prompt, zoom_factor=zoom_factor)
+        isc = ImageSelectionConfig(mask_widget=True, save_widget=True,
+                                   click_event_type=ClickEventType.ZOOM, draw_height_py=draw_height_py,
+                                   visualize_input_prompt=visualize_input_prompt, zoom_factor=zoom_factor)
         self.left_image_selection = ImageSelection(self.image_frame, isc)
         self.left_image_selection.grid(row=0, column=0)
         self.right_image_selection = ImageSelection(self.image_frame, isc)
@@ -273,11 +267,9 @@ class CTRLabellerApp(tk.Tk):
     def __init__(self, config: CTRLabellerAppConfig, datasaver: DataSaver,
                  stereo_image_queue: StereoImageDataQueue, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
-
         self.config = config
         self.selection_num = self.config.selection_grid_size[0] * self.config.selection_grid_size[1]
         self.stereo_image_queue = stereo_image_queue
-
         self.datasaver = datasaver
         self.selections = []
         for i in range(self.config.selection_grid_size[0]):
