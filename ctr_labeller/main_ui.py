@@ -1,12 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 import torch
 import threading
+import pathlib
 
-from ctr_labeller.ui import CTRLabellerApp, CTRLabellerAppConfig
+from ctr_labeller.ui.apps import CTRLabellerApp, CTRLabellerAppConfig, InputPromptGenerationApp
 from ctr_labeller.predictor import SAMBatchedPredictor
 from ctr_labeller.config.utils import parse_config, configure
 from ctr_labeller.dataset import StereoDataSet
+from ctr_labeller.datasaver import DataSaver
 from ctr_labeller.types import StereoImageDataQueue
 
 def show_points(coords, labels, ax, marker_size=375):
@@ -32,24 +35,22 @@ def debug_input(image, input_box, input_point = None):
 class CTRLabellerConfig:
     data_path: str
     app_config: CTRLabellerAppConfig
-    save_root_path: str  
-    prefix_left: str  
-    prefix_right: str
+    input_prompt_image_height: int = 1080
     debug_inputs: bool = True
+    save_image_and_masks: bool = True
     sort_based_on: str = "None"
     max_size_to_add: int = 40 # Depends on how much RAM on CPU to load images
 
 class SAMBatchedPredictorThread(threading.Thread):
-    def __init__(self, datasaver, stereo_image_queue, dataloader, config, left_input_prompts, right_input_prompts):
+    def __init__(self, sam_predictor: SAMBatchedPredictor, stereo_image_queue, dataloader, config, left_input_prompts, right_input_prompts):
         super(SAMBatchedPredictorThread, self).__init__()
-        self.predictor = SAMBatchedPredictor(datasaver, config.sort_based_on)
+        self.sam_predictor = sam_predictor
         self.stereo_image_queue = stereo_image_queue
         self.dataloader = dataloader
         self.config = config
         self.left_input_prompts = left_input_prompts
         self.right_input_prompts = right_input_prompts
 
-        # self.done = False
         self.start()
 
     def run(self):
@@ -62,72 +63,56 @@ class SAMBatchedPredictorThread(threading.Thread):
             # if batch_idx >= batch_len - 1:
             #     is_last_batch = True
             print("SAMBatchedPredictorThread | predicting frame_ids: {} ".format(batch["frame_id"].cpu().detach().numpy()))
-            stereo_image_datas = self.predictor.predict_stereo(batch, self.left_input_prompts, self.right_input_prompts)
+            stereo_image_datas = self.sam_predictor.predict_stereo(batch, self.left_input_prompts, self.right_input_prompts)
             self.stereo_image_queue.wait_add_images(stereo_image_datas)
             batch_idx += 1
             num = num + len(batch)
         print ("SAMBatchedPredictorThread | ------ BATCH IS DONE ------")
 
 def main():
-   # Config
+    # Parse config
     config = parse_config(CTRLabellerConfig, yaml_arg='--config')
 
-    # SAM Input
-    # TODO, another gui for clicking points and boxes and save as prompts
-    # if config.debug_inputs:
-    #     img_idx = 0
-    #     debug_input(stereo_image_data[img_idx].left.image, left_input_box)
-    #     debug_input(stereo_image_data[img_idx].right.image, right_input_box)
-    #     plt.show()
-
-    grid_num = config.app_config.selection_grid_size[0] * config.app_config.selection_grid_size[1]
-    stereo_image_dataset = StereoDataSet(config.save_root_path, config.prefix_left, config.prefix_right)
+    # Load data
+    full_data_path = os.path.join(pathlib.Path(__file__).parent.resolve(), config.data_path)
+    datasaver = DataSaver(full_data_path, must_have_csv=True, save_image_and_masks= config.save_image_and_masks)
+    stereo_image_dataset = StereoDataSet(full_data_path, datasaver)
     if len(stereo_image_dataset) == 0:
         print("Dataset has all been processed or empty, terminating!!!")
         return
-    loader = torch.utils.data.DataLoader(stereo_image_dataset, batch_size=grid_num,
-                                         pin_memory=True, num_workers=4, shuffle=False)
+
+    sam_predictor = SAMBatchedPredictor(datasaver, config.sort_based_on)
+
+    # Input prompt generation
+    if datasaver.is_input_prompts_available:
+        left_input_prompts, right_input_prompts = datasaver.get_input_prompts()
+    else:
+        input_prompt_app = InputPromptGenerationApp(
+                                stereo_image_dataset,
+                                sam_predictor,
+                                config.input_prompt_image_height)
+        input_prompt_app.start()
+        input_prompt_app.mainloop()
+        left_input_prompts, right_input_prompts = input_prompt_app.get_input_prompts()
+        print("Selected input prompts", left_input_prompts, right_input_prompts)
+        input_prompt_app.destroy()
 
     # SAM Create Masks
-    left_input_prompts = [
-        {
-            "name": "box_and_point",
-            "box": np.array([300, 500, 1600, 1400]),
-            "point_coords": np.array([[710, 260]]),
-            "point_labels": np.array([1])
-        },
-        {
-            "name": "point",
-            "box": None,
-            "point_coords": np.array([[710, 260]]),
-            "point_labels": np.array([1])
-        }
-    ]
-
-    right_input_prompts = [
-        {
-            "name": "box_and_point",
-            "box": np.array([500, 600, 1500, 1400]),
-            "point_coords": np.array([[1129, 400]]),
-            "point_labels": np.array([1])
-        },
-        {
-            "name": "point",
-            "box": None,
-            "point_coords": np.array([[1129, 400]]),
-            "point_labels": np.array([1])
-        }
-    ]
-
+    grid_num = config.app_config.selection_grid_size[0] * config.app_config.selection_grid_size[1]
+    loader = torch.utils.data.DataLoader(stereo_image_dataset, batch_size=grid_num,
+                                         pin_memory=True, num_workers=4, shuffle=False)
     stereo_image_queue = StereoImageDataQueue(max_size_to_add=config.max_size_to_add)
     predictor_thread = SAMBatchedPredictorThread(
-        stereo_image_dataset.datasaver, stereo_image_queue,
+        sam_predictor, stereo_image_queue,
         loader, config, left_input_prompts, right_input_prompts)
 
+    # Labeller App
     app = CTRLabellerApp(config.app_config, stereo_image_dataset.datasaver, stereo_image_queue)
     app.start()
-    app.title("CTR SAM Labeller, press [n] to save and proceed with next set")
     app.mainloop()
+    
+    if datasaver.is_input_prompts_available == False:
+        datasaver.save_input_prompts(left_input_prompts, right_input_prompts)
     predictor_thread.join()
     return
 
