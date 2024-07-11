@@ -107,33 +107,33 @@ class SAMBatchedPredictor:
                 StereoImageData2(frame_id=frame_id, left=left_image_data, right=right_image_data))
         return stereo_image_datas
 
-    def predict(self, image_datas: List[ImageData], frame_ids: List[str], input_prompts: List[dict]):
-        image_pixel_num = image_datas[0].image.shape[0] * image_datas[0].image.shape[1]
-        for i  in range(len(image_datas)):
-            image_data = image_datas[i]
-            if self.data_saver.check_is_mask_processed(frame_ids[i]):
-                continue
-            self.predictor.set_image(image_data.image)
-            for input_prompt in input_prompts:
-                mask, score, _ = self.predictor.predict(
-                    point_coords=input_prompt["point_coords"],
-                    point_labels=input_prompt["point_labels"],
-                    box=input_prompt["box"],
-                    multimask_output=False)
-                area_ratio = len(np.column_stack(np.where(mask > 0))) / image_pixel_num
-                prediction_output = PredictionOutput(
-                        input_prompt,
-                        mask=mask,
-                        masked_image=apply_mask(image_data.image, mask),
-                        score=score[0],
-                        area_ratio=area_ratio)
-                image_data.prediction_outputs.append(prediction_output)
-            # Sorting
-            if self.sort_based_on == "highest_score":
-                image_data.prediction_outputs = sorted(image_data.prediction_outputs, key=operator.attrgetter('score'), reverse=True)
-            elif self.sort_based_on == "lowest_area_ratio":
-                image_data.prediction_outputs = sorted(image_data.prediction_outputs, key=operator.attrgetter('area_ratio'))
-            image_data.current_mask_idx = 0
+    # def predict(self, image_datas: List[ImageData], frame_ids: List[str], input_prompts: List[dict]):
+    #     image_pixel_num = image_datas[0].image.shape[0] * image_datas[0].image.shape[1]
+    #     for i  in range(len(image_datas)):
+    #         image_data = image_datas[i]
+    #         if self.data_saver.check_is_mask_processed(frame_ids[i]):
+    #             continue
+    #         self.predictor.set_image(image_data.image)
+    #         for input_prompt in input_prompts:
+    #             mask, score, _ = self.predictor.predict(
+    #                 point_coords=input_prompt["point_coords"],
+    #                 point_labels=input_prompt["point_labels"],
+    #                 box=input_prompt["box"],
+    #                 multimask_output=False)
+    #             area_ratio = len(np.column_stack(np.where(mask > 0))) / image_pixel_num
+    #             prediction_output = PredictionOutput(
+    #                     input_prompt,
+    #                     mask=mask,
+    #                     masked_image=apply_mask(image_data.image, mask),
+    #                     score=score[0],
+    #                     area_ratio=area_ratio)
+    #             image_data.prediction_outputs.append(prediction_output)
+    #         # Sorting
+    #         if self.sort_based_on == "highest_score":
+    #             image_data.prediction_outputs = sorted(image_data.prediction_outputs, key=operator.attrgetter('score'), reverse=True)
+    #         elif self.sort_based_on == "lowest_area_ratio":
+    #             image_data.prediction_outputs = sorted(image_data.prediction_outputs, key=operator.attrgetter('area_ratio'))
+    #         image_data.current_mask_idx = 0
 
    # def __append_to_batch(self, batched_input, image, input_prompts: List[dict]):
     #     prepared_image = prepare_image(image, self.resize_transform, self.sam)

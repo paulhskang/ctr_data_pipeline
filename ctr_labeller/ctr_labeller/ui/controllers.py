@@ -6,6 +6,7 @@ import numpy as np
 
 from ctr_labeller.types import ImageData
 from ctr_labeller.ui.types import ImageSelectorState, create_img_with_input_prompt
+from ctr_labeller.predictor import SAMBatchedPredictor
 
 class SaveWidget():
     def __init__(self, save_img_check_button, is_select_var, state: ImageSelectorState):
@@ -25,14 +26,14 @@ class MaskTogglerWidget():
     def __init__(self, toggle_mask_button, select_image_function, state: ImageSelectorState):
         self.state = state
         self.state.toggle_mask_button = toggle_mask_button
-        self.state.toggle_mask_button.configure(command=self.__toggle_mask)
+        self.state.toggle_mask_button.configure(command=self._toggle_mask)
         self.select_image_function = select_image_function
         self.disable()
     def enable(self):
         self.state.toggle_mask_button.configure(state="active")
     def disable(self):
         self.state.toggle_mask_button.configure(state="disabled")
-    def __toggle_mask(self):
+    def _toggle_mask(self):
         image_data = self.state.current_image_data
         if len(image_data.prediction_outputs) < 1:
             return
@@ -41,15 +42,21 @@ class MaskTogglerWidget():
         self.state.is_zoomed = False
         self.state.trigger_presenter_function()
     
-class GenerateMaskTogglerWidget(MaskTogglerWidget):
-    def __init__(self, predictor, toggle_mask_button, select_image_function, state: ImageSelectorState):
-        super().__init__(toggle_mask_button, select_image_function, state)
+class GenerateMaskTogglerWidget():
+    def __init__(self, predictor: SAMBatchedPredictor, generate_mask_button, state: ImageSelectorState):
         self.predictor = predictor
-    def __toggle_mask(self):
+        self.state = state
+        self.state.generate_mask_button = generate_mask_button
+        self.state.generate_mask_button.configure(command=self._generate_mask)
+        self.disable()
+    def enable(self):
+        self.state.generate_mask_button.configure(state="active")
+    def disable(self):
+        self.state.generate_mask_button.configure(state="disabled")
+    def _generate_mask(self):
         image_data = self.state.current_image_data
         image_data.prediction_outputs = []
         self.predictor.predict_one(image_data, list(self.state.current_input_prompts.values()))
-        super().__toggle_mask()
 
 class ClickInputPromptWidget():
     def __init__(self, toggle_type_button, state: ImageSelectorState):
@@ -170,8 +177,10 @@ class ImageSelectionType(Enum):
 @dataclass
 class ImageSelectorConfig:
     is_select_var = None
-    save_img_check_button = None
+    save_img_check_button = None # Must be with is_select_var
     toggle_mask_button = None
+    generate_mask_button = None
+    predictor: SAMBatchedPredictor = None # For generate_masks_button
     click_event_type: ClickEventType = None
     toggle_type_button = None # For ClickEventType.INPUT_PROMPT
 
@@ -183,7 +192,9 @@ class ImageSelector:
         if config.save_img_check_button is not None:
             self.widgets.append(SaveWidget(config.save_img_check_button, config.is_select_var, self.state))
         if config.toggle_mask_button is not None:
-            self.widgets.append(MaskTogglerWidget(config.toggle_mask_button, self.select_image, self.state))
+                self.widgets.append(MaskTogglerWidget(config.toggle_mask_button, self.select_image, self.state))
+        if config.generate_mask_button is not None and isinstance(config.predictor, SAMBatchedPredictor):
+            self.widgets.append(GenerateMaskTogglerWidget(config.predictor, config.generate_mask_button, self.state))
         if config.click_event_type is not None:
             if config.click_event_type == ClickEventType.ZOOM:
                 self.widgets.append(ClickZoomWidget(self.state))

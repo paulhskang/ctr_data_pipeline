@@ -37,18 +37,11 @@ class ImageSelectionPresenter(tk.Frame):
         self.set_mask_label(self.state.current_mask_label)
     
     def resize_image_to_window(self, image):
-        # print(image.shape)
         scale = image.shape[1]/self.state.c_draw_height_py
         self.state.resize_img_scale = scale
         resized_img = cv2.resize(image, (self.state.c_draw_height_py, int(image.shape[0]//scale)), interpolation=cv2.INTER_LINEAR)
-        # print(resized_img.shape)
-        # print(image.shape[0]/resized_img.shape[0])
-        # print(image.shape[1]/resized_img.shape[1])
-        # print(scale)
         return resized_img
-        
-        # return cv2.resize(image, (int(image.shape[0]//scale), self.state.c_draw_height_py), interpolation=cv2.INTER_LINEAR)
-       
+               
     def draw_image(self, image):
         self.image_x = image.shape[0]
         self.image_y = image.shape[1]   

@@ -4,6 +4,7 @@ import tkinter as tk
 from ctr_labeller.config.utils import configure
 from ctr_labeller.datasaver import DataSaver
 from ctr_labeller.types import StereoImageDataQueue, ImageData
+from ctr_labeller.predictor import SAMBatchedPredictor
 from ctr_labeller.ui.controllers import StereoImageSelector, ImageSelectorConfig, ImageSelector, \
                                         ClickEventType, ImageSelectionType
 from ctr_labeller.ui.presenters import StereoImagePresenter, OrganizedButtonGenerator
@@ -116,10 +117,9 @@ class CTRLabellerApp(tk.Tk):
         print("CTRLabellerApp | Presenting next set of images")
 
 class InputPromptGenerationApp(tk.Tk):
-    def __init__(self, stereo_image_dataset, sam_predictor, selection_image_height_py, *args, **kwargs):
+    def __init__(self, stereo_image_dataset, sam_predictor: SAMBatchedPredictor, selection_image_height_py, *args, **kwargs):
         tk.Tk.__init__(self, *args, **kwargs)
         self.stereo_image_dataset = stereo_image_dataset
-        self.sam_predictor = sam_predictor
         left_state = ImageSelectorState(selection_image_height_py)
         left_state.current_input_prompts = {}
         right_state = ImageSelectorState(selection_image_height_py)
@@ -127,17 +127,20 @@ class InputPromptGenerationApp(tk.Tk):
         self.stereo_img_presenter = StereoImagePresenter(self, left_state, right_state)
         self.stereo_img_presenter.grid(row=0, column=0, padx=10, pady=10)
         self.stereo_img_selector = StereoImageSelector(
-            InputPromptGenerationApp.__create_selector(OrganizedButtonGenerator(self.stereo_img_presenter.left, (2, 0)), left_state),
-            InputPromptGenerationApp.__create_selector(OrganizedButtonGenerator(self.stereo_img_presenter.right, (2, 0)), right_state))
+            InputPromptGenerationApp.__create_selector(OrganizedButtonGenerator(self.stereo_img_presenter.left, (2, 0)), left_state, sam_predictor),
+            InputPromptGenerationApp.__create_selector(OrganizedButtonGenerator(self.stereo_img_presenter.right, (2, 0)), right_state, sam_predictor))
         self.title("InputPromptGenerationApp, generate your input prompts, then press [n] to save and proceed")
         
-    def __create_selector(button_generator: OrganizedButtonGenerator, state: ImageSelectorState):
+    def __create_selector(button_generator: OrganizedButtonGenerator, state: ImageSelectorState, predictor: SAMBatchedPredictor):
         isc = ImageSelectorConfig()
         isc.click_event_type = ClickEventType.INPUT_PROMPT
         isc.toggle_type_button = button_generator.create_button(state="disabled",
                                                                 height=state.c_draw_height_py//state.c_scaler)
+        isc.generate_mask_button = button_generator.create_button(text ="Generate Mask",
+                                       state="disabled", height=state.c_draw_height_py//state.c_scaler)
         isc.toggle_mask_button = button_generator.create_button(text ="Toggle Mask",
                                        state="disabled", height=state.c_draw_height_py//state.c_scaler)
+        isc.predictor = predictor
         return ImageSelector(isc, state) 
     
     def start(self):

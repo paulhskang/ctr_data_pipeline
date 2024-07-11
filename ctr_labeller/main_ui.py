@@ -35,6 +35,7 @@ def debug_input(image, input_box, input_point = None):
 class CTRLabellerConfig:
     data_path: str
     app_config: CTRLabellerAppConfig
+    input_prompt_image_height: int = 1080
     debug_inputs: bool = True
     save_image_and_masks: bool = True
     sort_based_on: str = "None"
@@ -50,7 +51,6 @@ class SAMBatchedPredictorThread(threading.Thread):
         self.left_input_prompts = left_input_prompts
         self.right_input_prompts = right_input_prompts
 
-        # self.done = False
         self.start()
 
     def run(self):
@@ -88,7 +88,7 @@ def main():
     input_prompt_app = InputPromptGenerationApp(
                             stereo_image_dataset,
                             sam_predictor,
-                            config.app_config.selection_image_height_py)
+                            config.input_prompt_image_height)
     input_prompt_app.start()
     input_prompt_app.mainloop()
     left_input_prompts, right_input_prompts = input_prompt_app.get_input_prompts()
