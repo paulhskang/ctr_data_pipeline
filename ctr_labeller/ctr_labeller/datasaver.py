@@ -1,9 +1,26 @@
 
+import atexit
+import copy
 import cv2
+import json
+import numpy as np
 import os
 import pandas as pd
-import atexit
+from typing import List
+
 from ctr_labeller.types import convert_mask_torch_to_opencv
+
+def convert_dict_array_values_to_lists(dictionary, exceptions: List):
+    for key in dictionary:
+        if key in exceptions or dictionary[key] is None:
+            continue
+        dictionary[key] = dictionary[key].tolist()
+
+def convert_dict_list_values_to_arrays(dictionary, exceptions: List):
+    for key in dictionary:
+        if key in exceptions or dictionary[key] is None:
+            continue
+        dictionary[key] = np.array(dictionary[key])
 
 class DataSaver:
     def __init__(self, save_root_path, must_have_csv = False, save_image_and_masks = True):
@@ -21,6 +38,21 @@ class DataSaver:
         else:
             self.no_initial_csv = True
             self.reference_dict = {}
+
+        self.left_input_prompts = None
+        self.right_input_prompts = None
+        self.is_input_prompts_available = False
+        self.prompts_file_path = os.path.join(save_root_path, "input_prompts.json")
+        if os.path.isfile(self.prompts_file_path):
+            self.is_input_prompts_available = True
+            f = open(self.prompts_file_path)
+            data = json.load(f)
+            for input_prompt in data["left_input_prompts"]:
+                convert_dict_list_values_to_arrays(input_prompt, ["name"])
+            for input_prompt in data["right_input_prompts"]:
+                convert_dict_list_values_to_arrays(input_prompt, ["name"])
+            self.left_input_prompts = data["left_input_prompts"]
+            self.right_input_prompts = data["right_input_prompts"]
 
         self.mask_path = os.path.join(save_root_path, "masks")
         if not os.path.exists(self.mask_path): # Means no format path
@@ -41,9 +73,6 @@ class DataSaver:
         if pd.isna(is_processed):
             return False
         return is_processed
-
-    def get_input_prompts(self):
-        return None
 
     def __save_current_mask(self, image_data):
         current_prediction_output = image_data.prediction_outputs[image_data.current_mask_idx]
@@ -91,3 +120,24 @@ class DataSaver:
         df.index.name = "frame_id"
         df.to_csv(self.reference_file_path)
         print("DataSaver | Finished saving reference.csv")
+
+    def get_input_prompts(self):
+        return self.left_input_prompts, self.right_input_prompts
+    
+    def save_input_prompts(self, left_input_prompts, right_input_prompts, filename = ""):
+        left_input_prompts = copy.deepcopy(left_input_prompts)
+        right_input_prompts = copy.deepcopy(right_input_prompts)
+        file_to_save = "input_prompts.json"
+        if filename != "":
+            file_to_save = filename
+        for input_prompt in left_input_prompts:
+            convert_dict_array_values_to_lists(input_prompt, ["name"])
+        for input_prompt in right_input_prompts:
+            convert_dict_array_values_to_lists(input_prompt, ["name"])
+
+        entire_dict = {}
+        entire_dict["right_input_prompts"] = right_input_prompts
+        entire_dict["left_input_prompts"] = left_input_prompts
+        
+        with open(os.path.join(self.save_root_path, file_to_save), 'w') as f:
+            json.dump(entire_dict, f, ensure_ascii=False, indent=2)

@@ -84,18 +84,18 @@ def main():
     sam_predictor = SAMBatchedPredictor(datasaver, config.sort_based_on)
 
     # Input prompt generation
-    # if datasaver.get_input_prompts() is None:
-    input_prompt_app = InputPromptGenerationApp(
-                            stereo_image_dataset,
-                            sam_predictor,
-                            config.input_prompt_image_height)
-    input_prompt_app.start()
-    input_prompt_app.mainloop()
-    left_input_prompts, right_input_prompts = input_prompt_app.get_input_prompts()
-    print("Selected input prompts", left_input_prompts, right_input_prompts)
-    input_prompt_app.destroy()
-    # else:
-    #     left_input_prompts, right_input_prompts = datasaver.get_input_prompts()
+    if datasaver.is_input_prompts_available:
+        left_input_prompts, right_input_prompts = datasaver.get_input_prompts()
+    else:
+        input_prompt_app = InputPromptGenerationApp(
+                                stereo_image_dataset,
+                                sam_predictor,
+                                config.input_prompt_image_height)
+        input_prompt_app.start()
+        input_prompt_app.mainloop()
+        left_input_prompts, right_input_prompts = input_prompt_app.get_input_prompts()
+        print("Selected input prompts", left_input_prompts, right_input_prompts)
+        input_prompt_app.destroy()
 
     # SAM Create Masks
     grid_num = config.app_config.selection_grid_size[0] * config.app_config.selection_grid_size[1]
@@ -110,6 +110,9 @@ def main():
     app = CTRLabellerApp(config.app_config, stereo_image_dataset.datasaver, stereo_image_queue)
     app.start()
     app.mainloop()
+    
+    if datasaver.is_input_prompts_available == False:
+        datasaver.save_input_prompts(left_input_prompts, right_input_prompts)
     predictor_thread.join()
     return
 
