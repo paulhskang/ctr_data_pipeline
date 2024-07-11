@@ -5,6 +5,7 @@ app_config:
   frame_padx: 10
   frame_pady: 10
 
+batch_num: -1
 input_prompt_image_height: 1080
 debug_inputs: False
 sort_based_on: "highest_score"

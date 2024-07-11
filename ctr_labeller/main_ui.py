@@ -36,6 +36,7 @@ class CTRLabellerConfig:
     data_path: str
     app_config: CTRLabellerAppConfig
     input_prompt_image_height: int = 1080
+    batch_num: int = -1
     debug_inputs: bool = True
     save_image_and_masks: bool = True
     sort_based_on: str = "None"
@@ -76,7 +77,7 @@ def main():
     # Load data
     full_data_path = os.path.join(pathlib.Path(__file__).parent.resolve(), config.data_path)
     datasaver = DataSaver(full_data_path, must_have_csv=True, save_image_and_masks= config.save_image_and_masks)
-    stereo_image_dataset = StereoDataSet(full_data_path, datasaver)
+    stereo_image_dataset = StereoDataSet(full_data_path, datasaver, config.batch_num)
     if len(stereo_image_dataset) == 0:
         print("Dataset has all been processed or empty, terminating!!!")
         return

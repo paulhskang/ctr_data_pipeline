@@ -7,14 +7,20 @@ import numpy as np
 from ctr_labeller.datasaver import DataSaver
 
 class StereoDataSet(torch.utils.data.Dataset):
-    def __init__(self, root_path, datasaver: DataSaver) -> None:
+    def __init__(self, root_path, datasaver: DataSaver, batch_num = -1) -> None:
         self.datasaver = datasaver
         self.root_path = root_path
         self.frame_infos = []
         for key, value in self.datasaver.reference_dict.items():
-            # People online say you have to know beforehand how to organize your data into pytorch dataset
+            if not key in self.datasaver.reference_dict:
+                continue
             if self.datasaver.check_is_mask_processed(key): 
                 continue
+
+            if batch_num != -1:
+                if "batch_num" in self.datasaver.reference_dict and \
+                    batch_num != self.datasaver.reference_dict["batch_num"]:
+                    continue
 
             frame_info = {
                 "frame_id": key,
