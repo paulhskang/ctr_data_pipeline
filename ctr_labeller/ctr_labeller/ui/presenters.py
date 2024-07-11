@@ -1,23 +1,8 @@
 import cv2
-import copy
 import tkinter as tk
 from PIL import ImageTk, Image
 
 from ctr_labeller.ui.types import ImageSelectorState
-
-def create_img_with_input_prompt(img, input_prompt):
-    prompted_img = copy.deepcopy(img)
-    if input_prompt["box"] is not None:
-        box_prompt = input_prompt["box"]
-        cv2.rectangle(prompted_img,
-                        (box_prompt[0], box_prompt[1]), (box_prompt[2], box_prompt[3]),
-                        color=(0, 255, 0), thickness=2)
-    if input_prompt["point_coords"] is not None:
-        point_coord = input_prompt["point_coords"][0]
-        cv2.drawMarker(prompted_img,
-                        (point_coord[0], point_coord[1]), color=(0, 255, 0), markerType=cv2.MARKER_DIAMOND,
-                        markerSize=20, thickness=2, line_type=cv2.LINE_AA)
-    return prompted_img
 
 class ImageSelectionPresenter(tk.Frame):
     NO_IMAGE_NAME = "No Image"
@@ -52,9 +37,17 @@ class ImageSelectionPresenter(tk.Frame):
         self.set_mask_label(self.state.current_mask_label)
     
     def resize_image_to_window(self, image):
+        # print(image.shape)
         scale = image.shape[1]/self.state.c_draw_height_py
         self.state.resize_img_scale = scale
-        return cv2.resize(image, (self.state.c_draw_height_py, int(image.shape[0]//scale)), interpolation=cv2.INTER_LINEAR)
+        resized_img = cv2.resize(image, (self.state.c_draw_height_py, int(image.shape[0]//scale)), interpolation=cv2.INTER_LINEAR)
+        # print(resized_img.shape)
+        # print(image.shape[0]/resized_img.shape[0])
+        # print(image.shape[1]/resized_img.shape[1])
+        # print(scale)
+        return resized_img
+        
+        # return cv2.resize(image, (int(image.shape[0]//scale), self.state.c_draw_height_py), interpolation=cv2.INTER_LINEAR)
        
     def draw_image(self, image):
         self.image_x = image.shape[0]
@@ -102,7 +95,7 @@ class OrganizedButtonGenerator(tk.Frame):
         self.current_row_idx = 0
         self.current_col_idx = 0
 
-    def _organize_button(self, button):
+    def __organize_button(self, button):
         button.grid(row=self.current_row_idx, column=self.current_col_idx, sticky="nsew")
         self.current_col_idx += 1
         if self.current_col_idx == self.max_col:
@@ -112,10 +105,10 @@ class OrganizedButtonGenerator(tk.Frame):
     def create_check_button(self, **kwargs):
         select_var =  tk.BooleanVar(value=True)
         check_button = tk.Checkbutton(self, variable=select_var, **kwargs)
-        self._organize_button(check_button)
+        self.__organize_button(check_button)
         return check_button, select_var
     
     def create_button(self, **kwargs):
         button = tk.Button(self, **kwargs)
-        self._organize_button(button)
+        self.__organize_button(button)
         return button

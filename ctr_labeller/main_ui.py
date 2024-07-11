@@ -5,8 +5,7 @@ import torch
 import threading
 import pathlib
 
-from ctr_labeller.ui.apps import CTRLabellerApp, CTRLabellerAppConfig
-from ctr_labeller.input_prompt_ui import InputPromptGenerationApp
+from ctr_labeller.ui.apps import CTRLabellerApp, CTRLabellerAppConfig, InputPromptGenerationApp
 from ctr_labeller.predictor import SAMBatchedPredictor
 from ctr_labeller.config.utils import parse_config, configure
 from ctr_labeller.dataset import StereoDataSet
@@ -85,14 +84,18 @@ def main():
     sam_predictor = SAMBatchedPredictor(datasaver, config.sort_based_on)
 
     # Input prompt generation
-    if datasaver.get_input_prompts() is None:
-        input_prompt_app = InputPromptGenerationApp(
-                                stereo_image_dataset,
-                                sam_predictor,
-                                config.app_config.selection_image_height_py)
-        left_input_prompts, right_input_prompts = input_prompt_app.generate_input_prompts()
-    else:
-        left_input_prompts, right_input_prompts = datasaver.get_input_prompts()
+    # if datasaver.get_input_prompts() is None:
+    input_prompt_app = InputPromptGenerationApp(
+                            stereo_image_dataset,
+                            sam_predictor,
+                            config.app_config.selection_image_height_py)
+    input_prompt_app.start()
+    input_prompt_app.mainloop()
+    left_input_prompts, right_input_prompts = input_prompt_app.get_input_prompts()
+    print("Selected input prompts", left_input_prompts, right_input_prompts)
+    input_prompt_app.destroy()
+    # else:
+    #     left_input_prompts, right_input_prompts = datasaver.get_input_prompts()
 
     # SAM Create Masks
     grid_num = config.app_config.selection_grid_size[0] * config.app_config.selection_grid_size[1]
@@ -106,7 +109,6 @@ def main():
     # Labeller App
     app = CTRLabellerApp(config.app_config, stereo_image_dataset.datasaver, stereo_image_queue)
     app.start()
-    app.title("CTR SAM Labeller, press [n] to save and proceed with next set")
     app.mainloop()
     predictor_thread.join()
     return
