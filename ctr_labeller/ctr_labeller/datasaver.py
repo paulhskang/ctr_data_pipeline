@@ -34,7 +34,7 @@ class DataSaver:
             data_frame = pd.read_csv(self.reference_file_path, index_col=0)
             self.reference_dict = data_frame.to_dict(orient='index')
         elif must_have_csv: # MOST LIKELY WE WILL ALWAYS HAVE CSV NOW
-            raise ValueError("must have csv file reference.csv in save_root_path: ".format(save_root_path))
+            raise ValueError("must have csv file reference.csv in save_root_path: {}".format(save_root_path))
         else:
             self.no_initial_csv = True
             self.reference_dict = {}
@@ -72,13 +72,17 @@ class DataSaver:
             return False
         return is_processed
     
-    def __save_current_mask(self, image_data):
+    def __save_current_mask(self, image_data, collected_batch_num):
         current_prediction_output = image_data.prediction_outputs[image_data.current_mask_idx]
 
         # if os.path.exists(fullpath_mask): # Not working properly
         #     print("{} path exists! Overriding".format(fullpath_mask))
         mask_name = "mask_{}".format(image_data.name)
-        fullpath_mask = os.path.join(self.mask_path, "mask_{}".format(image_data.name))
+        fullpath_mask = os.path.join(self.mask_path, str(collected_batch_num), "mask_{}".format(image_data.name))
+        try:
+            os.makedirs(os.path.join(self.mask_path, str(collected_batch_num)))
+        except FileExistsError:
+            pass
         cv2.imwrite(fullpath_mask, convert_mask_torch_to_opencv(current_prediction_output.mask))
         relative_mask_path_from_root = os.path.join(os.path.split(self.mask_path)[1], mask_name)
 
@@ -94,15 +98,15 @@ class DataSaver:
 
         return relative_mask_path_from_root, relative_image_and_mask_path_from_root
 
-    def save_current_stereo_masks(self, frame_id, image_data_left, image_data_right):
+    def save_current_stereo_masks(self, frame_id, collected_batch_num, image_data_left, image_data_right):
         left_mask_path = ""
         left_image_and_mask_path = ""
         if image_data_left.is_save_mask:
-            left_mask_path, left_image_and_mask_path = self.__save_current_mask(image_data_left)
+            left_mask_path, left_image_and_mask_path = self.__save_current_mask(image_data_left, collected_batch_num)
         right_mask_path = ""
         right_image_and_mask_path = ""
         if image_data_right.is_save_mask:
-            right_mask_path, right_image_and_mask_path = self.__save_current_mask(image_data_right)
+            right_mask_path, right_image_and_mask_path = self.__save_current_mask(image_data_right, collected_batch_num)
 
         # Initial csv has left_image_path and right_image_path
         self.reference_dict[frame_id]["is_processed"] = True

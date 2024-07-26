@@ -24,6 +24,7 @@ class StereoDataSet(torch.utils.data.Dataset):
 
             frame_info = {
                 "frame_id": key,
+                "collected_batch_num": value["batch_num"],
                 "left_image_path": os.path.join(root_path, value["left_image_path"]),
                 "right_image_path": os.path.join(root_path, value["right_image_path"])}
             frame_info["left_image_name"] = os.path.split(frame_info["left_image_path"])[1]
