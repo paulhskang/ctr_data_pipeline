@@ -30,10 +30,12 @@ class StereoImageData:
     left: List[ImageData] = None
     right: List[ImageData] = None
     frame_ids: List[str] = None
+    # collected_batch_nums: List[str] = None
 
 @dataclass 
 class StereoImageData2:
     frame_id: str
+    collected_batch_num: str
     left: ImageData
     right: ImageData
 
