@@ -77,24 +77,31 @@ class DataSaver:
 
         # if os.path.exists(fullpath_mask): # Not working properly
         #     print("{} path exists! Overriding".format(fullpath_mask))
-        mask_name = "mask_{}".format(image_data.name)
-        fullpath_mask = os.path.join(self.mask_path, str(collected_batch_num), "mask_{}".format(image_data.name))
         try:
             os.makedirs(os.path.join(self.mask_path, str(collected_batch_num)))
         except FileExistsError:
             pass
+        mask_name = "mask_{}".format(image_data.name)
+        fullpath_mask = os.path.join(self.mask_path, str(collected_batch_num), mask_name)
         cv2.imwrite(fullpath_mask, convert_mask_torch_to_opencv(current_prediction_output.mask))
-        relative_mask_path_from_root = os.path.join(os.path.split(self.mask_path)[1], mask_name)
+        relative_mask_path_from_root = os.path.join(os.path.split(self.mask_path)[1], str(collected_batch_num), mask_name)
+        
+        # Image and masks
+        relative_image_and_mask_path_from_root = ""
+        if not self.save_image_and_masks:
+            return relative_mask_path_from_root, relative_image_and_mask_path_from_root
 
         # if os.path.exists(fullpath_image_and_mask): # Not working properly
         #     print("{} path exists! Overriding".format(fullpath_image_and_mask))
-        relative_image_and_mask_path_from_root = ""
-
-        if self.save_image_and_masks:
-            image_and_mask_name = "image_and_mask_{}".format(image_data.name)
-            fullpath_image_and_mask = os.path.join(self.image_and_masks_path, image_and_mask_name)
-            cv2.imwrite(fullpath_image_and_mask, cv2.cvtColor(current_prediction_output.masked_image, cv2.COLOR_RGB2BGR))
-            relative_image_and_mask_path_from_root = os.path.join(os.path.split(self.image_and_masks_path)[1], image_and_mask_name)
+        try:
+            os.makedirs(os.path.join(self.image_and_masks_path, str(collected_batch_num)))
+        except FileExistsError:
+            pass
+        image_and_mask_name = "image_and_mask_{}".format(image_data.name)
+        fullpath_image_and_mask = os.path.join(self.image_and_masks_path, str(collected_batch_num), image_and_mask_name)
+        cv2.imwrite(fullpath_image_and_mask, cv2.cvtColor(current_prediction_output.masked_image, cv2.COLOR_RGB2BGR))
+        relative_image_and_mask_path_from_root = os.path.join(
+            os.path.split(self.image_and_masks_path)[1], str(collected_batch_num), image_and_mask_name)
 
         return relative_mask_path_from_root, relative_image_and_mask_path_from_root
 

@@ -16,12 +16,9 @@ class StereoDataSet(torch.utils.data.Dataset):
                 continue
             if self.datasaver.check_is_mask_processed(key): 
                 continue
-
             if batch_num != -1:
-                if "batch_num" in self.datasaver.reference_dict and \
-                    batch_num != self.datasaver.reference_dict["batch_num"]:
+                if batch_num != value["batch_num"]:
                     continue
-
             frame_info = {
                 "frame_id": key,
                 "collected_batch_num": value["batch_num"],
@@ -30,7 +27,6 @@ class StereoDataSet(torch.utils.data.Dataset):
             frame_info["left_image_name"] = os.path.split(frame_info["left_image_path"])[1]
             frame_info["right_image_name"] = os.path.split(frame_info["right_image_path"])[1]
             self.frame_infos.append(frame_info)
-
     def __len__(self):
         return len(self.frame_infos)
 
