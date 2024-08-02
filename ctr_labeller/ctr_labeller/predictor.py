@@ -52,7 +52,12 @@ class SAMBatchedPredictor:
         """
         sam_checkpoint = "sam_vit_h_4b8939.pth"
         model_type = "vit_h"
-        device = "cuda"
+        if torch.backends.mps.is_available():
+            device = torch.device("mps")
+        # elif torch.cuda.is_available():
+        #     device = torch.device("cuda")
+        else:
+            device = torch.device("cuda")
         sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
         sam.to(device=device)
         self.predictor = SamPredictor(sam)
@@ -93,6 +98,7 @@ class SAMBatchedPredictor:
         stereo_image_datas = []
         for i in range(batch_size):
             frame_id = batch_data["frame_id"][i].item()
+            collected_batch_num = batch_data["collected_batch_num"][i].item()
             if self.data_saver.check_is_mask_processed(frame_id):
                 continue
             left_image_data = ImageData(batch_data["left_image"][i].cpu().detach().numpy(),
@@ -104,7 +110,7 @@ class SAMBatchedPredictor:
                                          batch_data["right_image_path"][i])
             self.predict_one(right_image_data, right_input_prompts)
             stereo_image_datas.append(
-                StereoImageData2(frame_id=frame_id, left=left_image_data, right=right_image_data))
+                StereoImageData2(frame_id=frame_id, collected_batch_num=collected_batch_num, left=left_image_data, right=right_image_data))
         return stereo_image_datas
 
     # def predict(self, image_datas: List[ImageData], frame_ids: List[str], input_prompts: List[dict]):
