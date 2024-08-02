@@ -119,6 +119,12 @@ class DataSaver:
         df.to_csv(self.reference_file_path)
         print("DataSaver | Finished saving reference.csv")
 
+    def save_csv(self):
+        df = pd.DataFrame.from_dict(self.reference_dict, orient='index')
+        df.index.name = "frame_id"
+        df.to_csv(self.reference_file_path)
+        print("DataSaver | Finished saving reference.csv")
+
     def get_input_prompts(self):
         return self.left_input_prompts, self.right_input_prompts
     

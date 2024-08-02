@@ -99,6 +99,25 @@ class StereoImageDataQueue:
             # print("StereoImageDataQueue | finished waiting to add ... ")
             for stereo_image in stereo_images:
                 self.queue.put(stereo_image)
+            self.add_cv.notify_all()
+
+    def wait_any_available_images_up_to(self, size_to_get):
+    #     stereo_images_return = []
+    #     with self.add_cv:
+    #         if self.queue.qsize() < size_to_get:
+    #             while self.queue.qsize() < size_to_get:
+    #                 self.add_cv.wait()
+    #         i = 0
+    #         while self.queue.qsize() > 0 and i < size_to_get:
+    #             stereo_images_return.append(self.queue.get())
+    #             i += 1
+    #         if self.queue.qsize() < self.max_size_to_add:
+    #             self.add_cv.notify_all()
+    #     return stereo_images_return
+        with self.add_cv:
+            self.add_cv.wait_for(lambda : self.queue.qsize() >= size_to_get) # Should add or sigint handler
+        return self.get_any_available_images_up_to(size_to_get)
+
 
     def get_any_available_images_up_to(self, max_size_to_get):
         stereo_images_return = []
