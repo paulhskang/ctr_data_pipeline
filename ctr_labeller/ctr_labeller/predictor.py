@@ -101,6 +101,7 @@ class SAMBatchedPredictor:
             collected_batch_num = batch_data["collected_batch_num"][i].item()
             if self.data_saver.check_is_mask_processed(frame_id):
                 continue
+            self.update_input_prompts(frame_id, left_input_prompts, right_input_prompts)
             left_image_data = ImageData(batch_data["left_image"][i].cpu().detach().numpy(),
                                         batch_data["left_image_name"][i],
                                         batch_data["left_image_path"][i])
@@ -112,6 +113,34 @@ class SAMBatchedPredictor:
             stereo_image_datas.append(
                 StereoImageData2(frame_id=frame_id, collected_batch_num=collected_batch_num, left=left_image_data, right=right_image_data))
         return stereo_image_datas
+
+    def update_input_prompts(self, frame_id, left_input_prompts, right_input_prompts):
+        # update input prompts based on frame_id
+        # assumes a single point input prompt
+
+        run_frame_ids = [0, 29502, 45375, 49151, 69841, 69858, 85101, 100002]
+        num_runs = len(run_frame_ids)
+        run_left_input_prompts = [[829.98, 128.28],
+                                   [984.19, 224.08],
+                                    [1005.2, 240.44],
+                                       [710.82, 175.01],
+                                         [750.54, 231.09],
+                                           [710.82, 172.68],
+                                             [727.17, 67.53]]
+        run_right_input_prompts = [[740.02, 111.92],
+                                    [681.61, 88.559],
+                                      [662.92, 86.223],
+                                        [870.87, 109.59],
+                                          [728.34, 62.857],
+                                            [868.53, 111.92],
+                                              [749.37, 233.43]]    
+
+        for i in range(num_runs-1):
+            if (frame_id >= run_frame_ids[i]) and (frame_id < run_frame_ids[i+1]):
+                # changes only first (and only) point_coord input
+                left_input_prompts[0]["point_coords"] = np.array([run_left_input_prompts[i]])
+                right_input_prompts[0]["point_coords"] = np.array([run_right_input_prompts[i]])
+
 
     # def predict(self, image_datas: List[ImageData], frame_ids: List[str], input_prompts: List[dict]):
     #     image_pixel_num = image_datas[0].image.shape[0] * image_datas[0].image.shape[1]
