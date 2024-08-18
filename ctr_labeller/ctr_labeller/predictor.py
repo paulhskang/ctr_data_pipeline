@@ -102,7 +102,7 @@ class SAMBatchedPredictor:
             if self.data_saver.check_is_mask_processed(frame_id):
                 continue
             # only update input prompts if offline masking
-            self.update_input_prompts(frame_id, left_input_prompts, right_input_prompts)
+            # self.update_input_prompts(frame_id, left_input_prompts, right_input_prompts)        # should not apply if through UI (offline only)
             left_image_data = ImageData(batch_data["left_image"][i].cpu().detach().numpy(),
                                         batch_data["left_image_name"][i],
                                         batch_data["left_image_path"][i])
@@ -123,7 +123,7 @@ class SAMBatchedPredictor:
         num_runs = len(run_frame_ids)
         run_right_input_prompts = [[830, 128],
             [984, 224],
-                [1005, 240],
+                [1005, 240], #[1016, 617], [875, 566]],
                     [875, 100],     #[871, 110],
                         [728, 63],
                             [869, 112],
