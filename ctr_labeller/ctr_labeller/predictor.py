@@ -74,6 +74,7 @@ class SAMBatchedPredictor:
             mask, score, _ = self.predictor.predict(
                 point_coords=input_prompt["point_coords"],
                 point_labels=input_prompt["point_labels"],
+                # point_labels=np.array([1,1]),
                 box=input_prompt["box"],
                 multimask_output=False)
             area_ratio = len(np.column_stack(np.where(mask > 0))) / image_pixel_num
@@ -118,6 +119,13 @@ class SAMBatchedPredictor:
     def update_input_prompts(self, frame_id, left_input_prompts, right_input_prompts):
         # update input prompts based on frame_id
         # assumes a single point input prompt
+        # to update to multi-point: update to 2d array (e.g., np.array([[701, 83],[760, 378]]))
+        #   and replace self.predictor.predict() call point_labels argument to match dimension (np.array([1,1]))
+
+
+        left_input_prompts[0]["point_coords"] = np.array([[760, 254],[741, 443]])
+        right_input_prompts[0]["point_coords"] = np.array([[701, 83],[701, 83]])
+        return
 
         run_frame_ids = [0, 29502, 45375, 49151, 69841, 69858, 85101, 100002]
         num_runs = len(run_frame_ids)

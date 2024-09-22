@@ -75,12 +75,12 @@ One single reference csv file should hold all the relative paths to each stereoi
 # Run
 To run GUI program:
 ```bash
-python main_ui.py --config config/config.yaml --data-path /path/to/reference/file
+python main_ui.py --config config/config.yaml --data-path /path/to/reference/file/folder
 ```
 
 To run offline segmentation program:
 ```bash
-python main_offline.py --config config/config.yaml --data-path /path/to/reference/file
+python main_offline.py --config config/config.yaml --data-path /path/to/reference/file/folder
 ```
 
 # TODO:
