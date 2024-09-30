@@ -30,6 +30,7 @@ class DataSaver:
 
         self.no_initial_csv = False
         self.reference_file_path = os.path.join(save_root_path, "reference.csv")
+        # self.reference_file_path = os.path.join(save_root_path, "results_reference.csv")
         if os.path.isfile(self.reference_file_path):
             data_frame = pd.read_csv(self.reference_file_path, index_col=0)
             self.reference_dict = data_frame.to_dict(orient='index')
@@ -42,7 +43,8 @@ class DataSaver:
         self.left_input_prompts = None
         self.right_input_prompts = None
         self.is_input_prompts_available = False
-        self.prompts_file_path = os.path.join(save_root_path, "input_prompts.json")
+        # self.prompts_file_path = os.path.join(save_root_path, "input_prompts.json")
+        self.prompts_file_path = "./input_prompts.json" # keep json in same folder
         if os.path.isfile(self.prompts_file_path):
             self.is_input_prompts_available = True
             f = open(self.prompts_file_path)

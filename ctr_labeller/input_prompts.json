@@ -1,0 +1,32 @@
+{
+  "right_input_prompts": [
+    {
+      "name": "point",
+      "box": null,
+      "point_coords": [
+        [
+          820,
+          213
+        ]
+      ],
+      "point_labels": [
+        1
+      ]
+    }
+  ],
+  "left_input_prompts": [
+    {
+      "name": "point",
+      "box": null,
+      "point_coords": [
+        [
+          722,
+          299
+        ]
+      ],
+      "point_labels": [
+        1
+      ]
+    }
+  ]
+}
