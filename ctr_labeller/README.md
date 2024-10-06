@@ -81,7 +81,6 @@ python main_ui.py --config config/config.yaml --data-path /path/to/reference/fil
 To run offline segmentation program:
 ```bash
 python main_offline.py --config config/config.yaml --data-path /path/to/reference/file/folder
-python main_offline.py --config config/config.yaml --data-path /Users/paulkang/UserPrograms/ctr_data
 ```
 
 # TODO:
