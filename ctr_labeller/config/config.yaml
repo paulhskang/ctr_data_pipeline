@@ -1,6 +1,6 @@
 app_config:
   zoom_factor: 2.0
-  selection_grid_size:  [2, 1]
+  selection_grid_size:  [1, 1]
   selection_image_height_py: 700
   frame_padx: 10
   frame_pady: 10
