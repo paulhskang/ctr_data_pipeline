@@ -76,6 +76,7 @@ One single reference csv file should hold all the relative paths to each stereoi
 To run GUI program:
 ```bash
 python main_ui.py --config config/config.yaml --data-path /path/to/reference/file/folder
+python main_ui.py --config config/config.yaml --data-path /home/pkang/OneDrive/linux_sync/data/ctr/runs/test
 ```
 
 To run offline segmentation program:
@@ -88,3 +89,20 @@ python main_offline.py --config config/config.yaml --data-path /path/to/referenc
 - Diplay which frames on screen/in terminal?
 - create new prompts during ui
 - allow for multiple prompts
+- remove mask and image
+- fix incorrect masks? if known it is bad (e.g., mask fails?)
+- update prompts online with mask generation
+
+- pyhton recon? all embeded into gui
+- exit plan
+
+current workflow:
+- if no prompts, create one new at start
+    - this is ideal for all dataset (e.g., as multiple points won't appl yto all configs) but not for troubleshooting
+- exit with ctrl-c
+
+desired workflow:
+- more integrated workflow? e.g., all in python with minimal work or run matlab in python
+    - automated reconstruction: calibration of xy-plane with qr code on the trocar face
+- flexibility: allow use of ui or offline pipelines
+    - ours: offline processing then verify images then UI troubleshooting (find wrong pairs, fix masks or reconstructions by new input prompts )

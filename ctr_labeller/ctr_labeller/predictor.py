@@ -54,10 +54,10 @@ class SAMBatchedPredictor:
         model_type = "vit_h"
         if torch.backends.mps.is_available():
             device = torch.device("mps")
-        # elif torch.cuda.is_available():
-        #     device = torch.device("cuda")
-        else:
+        elif torch.cuda.is_available():
             device = torch.device("cuda")
+        else:
+            device = torch.device("cpu")
         sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
         sam.to(device=device)
         self.predictor = SamPredictor(sam)
