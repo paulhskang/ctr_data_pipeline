@@ -60,9 +60,9 @@ class DataSaver:
         if not os.path.exists(self.mask_path): # Means no format path
             os.mkdir(self.mask_path)
 
-        self.image_and_masks_path = os.path.join(save_root_path, "image_and_masks")
-        if not os.path.exists(self.image_and_masks_path): # Means no format path
-            os.mkdir(self.image_and_masks_path)
+        # self.image_and_masks_path = os.path.join(save_root_path, "image_and_masks")
+        # if not os.path.exists(self.image_and_masks_path): # Means no format path
+        #     os.mkdir(self.image_and_masks_path)
 
         atexit.register(self.__destructor)
 
