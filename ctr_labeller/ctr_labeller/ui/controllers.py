@@ -5,7 +5,8 @@ from enum import Enum
 import numpy as np
 
 from ctr_labeller.types import ImageData
-from ctr_labeller.ui.types import ImageSelectorState, create_img_with_input_prompt
+from ctr_labeller.ui.types import ImageSelectorState, create_img_with_input_prompts,\
+    add_keypoint, remove_keypoint, add_bounding_box, remove_bounding_box
 from ctr_labeller.predictor import SAMBatchedPredictor
 
 class SaveWidget():
@@ -22,7 +23,6 @@ class SaveWidget():
         self.state.save_img_check_button.configure(state="disabled")
 
 class MaskTogglerWidget():
-    # def __init__(self, toggle_mask_button, select_image_function, parent_state: ImageSelectorState):
     def __init__(self, toggle_mask_button, select_image_function, state: ImageSelectorState):
         self.state = state
         self.state.toggle_mask_button = toggle_mask_button
@@ -56,14 +56,12 @@ class GenerateMaskTogglerWidget():
     def _generate_mask(self):
         image_data = self.state.current_image_data
         image_data.prediction_outputs = []
-        self.predictor.predict_one(image_data, list(self.state.current_input_prompts.values()))
+        self.predictor.predict_one(image_data, self.state.current_input_prompts)
 
 class ClickInputPromptWidget():
     def __init__(self, toggle_type_button, state: ImageSelectorState):
         self.state = state
-        self.keypoint = np.array([0, 0])
         self.bounding_box = np.array([0, 0, 0, 0])
-        self.is_keypoint_set = False
         self.is_start_bounding_box_set = False
         self.is_end_bounding_box_set = False
         self.is_bounding_box_set = False
@@ -91,55 +89,68 @@ class ClickInputPromptWidget():
         self.state.canvas.bind("<Button-3>", self.__set_end_bounding_box) 
     
     def __set_keypoint(self, event):
-        self.keypoint = np.array([event.x, event.y]) * self.state.resize_img_scale
-        self.keypoint = self.keypoint.astype(dtype=int)
-        self.is_keypoint_set = True
-        self.__check_for_input_prompts_and_generate()
-        self.state.current_image = cv2.drawMarker(copy.deepcopy(self.state.current_image_data.image),
-            (self.keypoint[0], self.keypoint[1]), color=(0, 255, 0), markerType=cv2.MARKER_DIAMOND,
-            markerSize=20, thickness=2, line_type=cv2.LINE_AA)
-        self.state.trigger_presenter_function()
+        curr_keypoint = [int(event.x * self.state.resize_img_scale), int(event.y * self.state.resize_img_scale)]
+        add_keypoint(self.state.current_input_prompts, curr_keypoint)
+        self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
+                                                self.state.current_input_prompts)
+        self.state.trigger_presenter_function()  
     
     def __set_start_bounding_box(self, event):
         self.bounding_box[0] = int(event.x * self.state.resize_img_scale)
         self.bounding_box[1] = int(event.y * self.state.resize_img_scale)
         self.is_start_bounding_box_set = True
-        self.__check_bounding_box_complete_ang_generate()
-        self.__check_for_input_prompts_and_generate()
+        # self.__check_for_input_prompts_and_generate()
+        self.is_bounding_box_set = self.is_start_bounding_box_set and self.is_end_bounding_box_set
+        if self.is_bounding_box_set:
+            add_bounding_box(self.state.current_input_prompts, self.bounding_box)
+            self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
+                                                self.state.current_input_prompts)
+        self.state.trigger_presenter_function()
     
     def __set_end_bounding_box(self, event):
         self.bounding_box[2] = int(event.x * self.state.resize_img_scale)
         self.bounding_box[3] = int(event.y * self.state.resize_img_scale)
         self.is_end_bounding_box_set = True
-        self.__check_bounding_box_complete_ang_generate()
-        self.__check_for_input_prompts_and_generate()
-
-    def __check_bounding_box_complete_ang_generate(self):
+        # self.__check_for_input_prompts_and_generate()
         self.is_bounding_box_set = self.is_start_bounding_box_set and self.is_end_bounding_box_set
-        if not self.is_bounding_box_set:
-            return
-        self.state.current_image = cv2.rectangle(copy.deepcopy(self.state.current_image_data.image),
-                        (self.bounding_box[0], self.bounding_box[1]), (self.bounding_box[2], self.bounding_box[3]),
-                        color=(0, 255, 0), thickness=2)
+        if self.is_bounding_box_set:
+            add_bounding_box(self.state.current_input_prompts, self.bounding_box)
+            self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
+                                                self.state.current_input_prompts)
+        self.state.trigger_presenter_function()    
+
+class DeleteLastKeypointWidget():
+    def __init__(self, delete_last_keypoint_button, state: ImageSelectorState):
+        self.state = state
+        self.state.delete_last_keypoint_button = delete_last_keypoint_button
+        self.state.delete_last_keypoint_button.configure(command=self._delete_last_keypoint)
+        self.disable()
+    def enable(self):
+        self.state.delete_last_keypoint_button.configure(state="active")
+    def disable(self):
+        self.state.delete_last_keypoint_button.configure(state="disabled")
+    def _delete_last_keypoint(self):
+        remove_keypoint(self.state.current_input_prompts)
+        self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
+                                                            self.state.current_input_prompts)
         self.state.trigger_presenter_function()
 
-    def __check_for_input_prompts_and_generate(self):
-        if self.is_keypoint_set:
-            input_prompt = {
-                "name": "point",
-                "box": None,
-                "point_coords": np.array([self.keypoint]),
-                "point_labels": np.array([1])
-            }
-            self.state.current_input_prompts["point"] = input_prompt
-        if self.is_keypoint_set and self.is_bounding_box_set:
-            input_prompt = {
-                "name": "box_and_point",
-                "box": self.bounding_box,
-                "point_coords": np.array([self.keypoint]),
-                "point_labels": np.array([1])
-            }
-            self.state.current_input_prompts["box_and_point"] = input_prompt
+class ClearBoundingBoxWidget():
+    def __init__(self, clear_bounding_box_button, state: ImageSelectorState):
+        self.state = state
+        self.state.clear_bounding_box_button = clear_bounding_box_button
+        self.state.clear_bounding_box_button.configure(command=self._clear_bounding_box)
+        self.disable()
+    def enable(self):
+        self.state.clear_bounding_box_button.configure(state="active")
+    def disable(self):
+        self.state.clear_bounding_box_button.configure(state="disabled")
+    def _clear_bounding_box(self):
+        remove_bounding_box(self.state.current_input_prompts)
+        self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
+                                                            self.state.current_input_prompts)
+        self.state.trigger_presenter_function()
+
 
 class ClickZoomWidget():
     def __init__(self, state: ImageSelectorState):
@@ -180,6 +191,8 @@ class ImageSelectorConfig:
     save_img_check_button = None # Must be with is_select_var
     toggle_mask_button = None
     generate_mask_button = None
+    delete_last_keypoint_button = None
+    clear_bounding_box_button = None
     predictor: SAMBatchedPredictor = None # For generate_masks_button
     click_event_type: ClickEventType = None
     toggle_type_button = None # For ClickEventType.INPUT_PROMPT
@@ -200,6 +213,10 @@ class ImageSelector:
                 self.widgets.append(ClickZoomWidget(self.state))
             elif config.click_event_type == ClickEventType.INPUT_PROMPT:
                 self.widgets.append(ClickInputPromptWidget(config.toggle_type_button, self.state))
+                if config.delete_last_keypoint_button is not None:
+                    self.widgets.append(DeleteLastKeypointWidget(config.delete_last_keypoint_button, self.state))
+                if config.clear_bounding_box_button is not None:
+                    self.widgets.append(ClearBoundingBoxWidget(config.clear_bounding_box_button, self.state))
             else:
                 raise Exception("Other clickevent types not supported yet")
         self.disable_context()
@@ -223,7 +240,7 @@ class ImageSelector:
         if len(image_data.prediction_outputs) < 1:
             raise Exception("selection is Mask, but no mask outputs")
         pred_output = image_data.prediction_outputs[image_data.current_mask_idx]
-        self.state.current_image = create_img_with_input_prompt(
+        self.state.current_image = create_img_with_input_prompts(
             pred_output.masked_image,
             pred_output.input_prompt)
         self.state.current_image_label = "Image: {}".format(image_data.name)

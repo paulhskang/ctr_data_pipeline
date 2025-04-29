@@ -35,6 +35,7 @@ def debug_input(image, input_box, input_point = None):
 class CTRLabellerConfig:
     data_path: str
     app_config: CTRLabellerAppConfig
+    create_input_prompts: bool = False
     input_prompt_image_height: int = 1080
     batch_num: int = -1
     debug_inputs: bool = True
@@ -84,7 +85,7 @@ def main():
     sam_predictor = SAMBatchedPredictor(datasaver, config.sort_based_on)
 
     # Input prompt generation
-    if datasaver.is_input_prompts_available:
+    if datasaver.is_input_prompts_available and not config.create_input_prompts:
         left_input_prompts, right_input_prompts = datasaver.get_input_prompts()
     else:
         input_prompt_app = InputPromptGenerationApp(

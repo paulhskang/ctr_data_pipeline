@@ -125,9 +125,9 @@ class InputPromptGenerationApp(tk.Tk):
         tk.Tk.__init__(self, *args, **kwargs)
         self.stereo_image_dataset = stereo_image_dataset
         left_state = ImageSelectorState(selection_image_height_py)
-        left_state.current_input_prompts = {}
+        # left_state.current_input_prompts = {}
         right_state = ImageSelectorState(selection_image_height_py)
-        right_state.current_input_prompts = {}
+        # right_state.current_input_prompts = {}
         self.stereo_img_presenter = StereoImagePresenter(self, left_state, right_state)
         self.stereo_img_presenter.grid(row=0, column=0, padx=10, pady=10)
         self.stereo_img_selector = StereoImageSelector(
@@ -144,6 +144,10 @@ class InputPromptGenerationApp(tk.Tk):
                                        state="disabled", height=state.c_draw_height_py//state.c_scaler)
         isc.toggle_mask_button = button_generator.create_button(text ="Toggle Mask",
                                        state="disabled", height=state.c_draw_height_py//state.c_scaler)
+        isc.delete_last_keypoint_button = button_generator.create_button(text ="Delete Last Keypoint",
+                                state="disabled", height=state.c_draw_height_py//state.c_scaler)
+        isc.clear_bounding_box_button = button_generator.create_button(text ="Clear Bounding Box",
+                                state="disabled", height=state.c_draw_height_py//state.c_scaler)
         isc.predictor = predictor
         return ImageSelector(isc, state) 
     

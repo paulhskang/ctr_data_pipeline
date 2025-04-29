@@ -58,6 +58,7 @@ class SAMBatchedPredictor:
             device = torch.device("cuda")
         else:
             device = torch.device("cpu")
+        print("Current device is: ", device)
         sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
         sam.to(device=device)
         self.predictor = SamPredictor(sam)
@@ -70,30 +71,27 @@ class SAMBatchedPredictor:
     def predict_one(self, image_data, input_prompts):
         image_pixel_num =image_data.image.shape[0] * image_data.image.shape[1]
         self.predictor.set_image(image_data.image)
-        for input_prompt in input_prompts:
-            mask, score, _ = self.predictor.predict(
-                point_coords=input_prompt["point_coords"],
-                point_labels=input_prompt["point_labels"],
-                # point_labels=np.array([1,1]),
-                box=input_prompt["box"],
-                multimask_output=False)
-            area_ratio = len(np.column_stack(np.where(mask > 0))) / image_pixel_num
-            prediction_output = PredictionOutput(
-                    input_prompt,
-                    mask=mask,
-                    masked_image=apply_mask(image_data.image, mask),
-                    score=score[0],
-                    area_ratio=area_ratio)
-            image_data.prediction_outputs.append(prediction_output)
-            # Sorting
-            if self.sort_based_on == "highest_score":
-                image_data.prediction_outputs = sorted(image_data.prediction_outputs, key=operator.attrgetter('score'), reverse=True)
-            elif self.sort_based_on == "lowest_area_ratio":
-                image_data.prediction_outputs = sorted(image_data.prediction_outputs, key=operator.attrgetter('area_ratio'))
-            image_data.current_mask_idx = 0
+        mask, score, _ = self.predictor.predict(
+            point_coords=np.array(input_prompts["point_coords"]),
+            point_labels=input_prompts["point_labels"],
+            box=input_prompts["box"],
+            multimask_output=False)
+        area_ratio = len(np.column_stack(np.where(mask > 0))) / image_pixel_num
+        prediction_output = PredictionOutput(
+                input_prompts,
+                mask=mask,
+                masked_image=apply_mask(image_data.image, mask),
+                score=score[0],
+                area_ratio=area_ratio)
+        image_data.prediction_outputs.append(prediction_output)
+        # Sorting
+        if self.sort_based_on == "highest_score":
+            image_data.prediction_outputs = sorted(image_data.prediction_outputs, key=operator.attrgetter('score'), reverse=True)
+        elif self.sort_based_on == "lowest_area_ratio":
+            image_data.prediction_outputs = sorted(image_data.prediction_outputs, key=operator.attrgetter('area_ratio'))
+        image_data.current_mask_idx = 0
 
-    def predict_stereo(self, batch_data,
-                       left_input_prompts: List[dict], right_input_prompts: List[dict]):
+    def predict_stereo(self, batch_data, left_input_prompts: dict, right_input_prompts: dict):
         assert len(left_input_prompts) == len(right_input_prompts)
         batch_size = len(batch_data["frame_id"])
         stereo_image_datas = []
