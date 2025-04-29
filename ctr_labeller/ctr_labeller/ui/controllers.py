@@ -27,20 +27,27 @@ class MaskTogglerWidget():
         self.state.toggle_mask_button = toggle_mask_button
         self.state.toggle_mask_button.configure(command=self._toggle_mask)
         self.select_image_function = select_image_function
+        self.toggle_state = False
         self.disable()
     def enable(self):
         self.state.toggle_mask_button.configure(state="active")
     def disable(self):
         self.state.toggle_mask_button.configure(state="disabled")
     def _toggle_mask(self):
-        image_data = self.state.current_image_data
-        if len(image_data.prediction_outputs) < 1:
-            return
-        image_data.current_mask_idx = (image_data.current_mask_idx + 1) % len(image_data.prediction_outputs)
-        self.select_image_function(ImageSelectionType.MASK_AND_PROMPT)
+        if self.toggle_state:
+            self.select_image_function(ImageSelectionType.IMAGE)
+            self.toggle_state = False
+        else:
+            image_data = self.state.current_image_data
+            if len(image_data.prediction_outputs) < 1:
+                return
+            image_data.current_mask_idx = (image_data.current_mask_idx + 1) % len(image_data.prediction_outputs)
+
+            self.select_image_function(ImageSelectionType.MASK_AND_PROMPT)
+            self.toggle_state = True
         self.state.is_zoomed = False
         self.state.trigger_presenter_function()
-    
+
 class GenerateMaskTogglerWidget():
     def __init__(self, predictor: SAMBatchedPredictor, generate_mask_button, state: ImageSelectorState):
         self.predictor = predictor
@@ -181,7 +188,7 @@ class ClickEventType(Enum):
 class ImageSelectionType(Enum):
     BLANK = 0
     IMAGE = 1
-    # CURRENT_IMAGE = 2
+    IMAGE_AND_PROMPT = 2
     MASK_AND_PROMPT = 3
     
 @dataclass
@@ -232,7 +239,15 @@ class ImageSelector:
         elif selection == ImageSelectionType.IMAGE:
             self.state.current_image = copy.deepcopy(self.state.current_image_data.image)
             self.state.current_image_label = "Image: {}".format(self.state.current_image_data.name)
-            self.state.current_mask_label_mask_label = None
+            self.state.current_mask_label = None
+            return
+        elif selection == ImageSelectionType.IMAGE_AND_PROMPT:
+            print(self.state.current_input_prompts)
+            self.state.current_image_label = "Image: {}".format(self.state.current_image_data.name)
+            self.state.current_mask_label = None
+            self.state.current_image = create_img_with_input_prompts(
+                self.state.current_image_data.image,
+                self.state.current_input_prompts)
             return
         # else selection == ImageSelectionType.MASK_AND_PROMPT:
         image_data = self.state.current_image_data

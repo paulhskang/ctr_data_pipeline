@@ -80,7 +80,7 @@ class StereoImagePresenter(tk.Frame):
         self.right.present_current_state()
 
 class OrganizedButtonGenerator(tk.Frame):
-    def __init__(self, parent_frame, button_frame_location, max_col = 4):
+    def __init__(self, parent_frame, button_frame_location, max_col = 6):
         tk.Frame.__init__(self, master=parent_frame)
         self.button_frame = tk.Frame(parent_frame)
         self.grid(row=button_frame_location[0], column=button_frame_location[1], sticky="nsew")
