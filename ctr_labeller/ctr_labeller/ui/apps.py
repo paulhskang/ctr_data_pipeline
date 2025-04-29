@@ -171,5 +171,5 @@ class InputPromptGenerationApp(tk.Tk):
         self.quit()
 
     def get_input_prompts(self):
-        return list(self.stereo_img_selector.left_image_selector.state.current_input_prompts.values()), \
-                list(self.stereo_img_selector.right_image_selector.state.current_input_prompts.values())
+        return self.stereo_img_selector.left_image_selector.state.current_input_prompts, \
+                self.stereo_img_selector.right_image_selector.state.current_input_prompts

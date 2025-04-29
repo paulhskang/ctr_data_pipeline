@@ -5,8 +5,7 @@ from enum import Enum
 import numpy as np
 
 from ctr_labeller.types import ImageData
-from ctr_labeller.ui.types import ImageSelectorState, create_img_with_input_prompts,\
-    add_keypoint, remove_keypoint, add_bounding_box, remove_bounding_box
+from ctr_labeller.ui.types import ImageSelectorState, create_img_with_input_prompts
 from ctr_labeller.predictor import SAMBatchedPredictor
 
 class SaveWidget():
@@ -90,7 +89,7 @@ class ClickInputPromptWidget():
     
     def __set_keypoint(self, event):
         curr_keypoint = [int(event.x * self.state.resize_img_scale), int(event.y * self.state.resize_img_scale)]
-        add_keypoint(self.state.current_input_prompts, curr_keypoint)
+        self.state.add_keypoint(curr_keypoint)
         self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
                                                 self.state.current_input_prompts)
         self.state.trigger_presenter_function()  
@@ -102,9 +101,9 @@ class ClickInputPromptWidget():
         # self.__check_for_input_prompts_and_generate()
         self.is_bounding_box_set = self.is_start_bounding_box_set and self.is_end_bounding_box_set
         if self.is_bounding_box_set:
-            add_bounding_box(self.state.current_input_prompts, self.bounding_box)
+            self.state.add_bounding_box(self.bounding_box)
             self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
-                                                self.state.current_input_prompts)
+                                                    self.state.current_input_prompts)
         self.state.trigger_presenter_function()
     
     def __set_end_bounding_box(self, event):
@@ -114,9 +113,9 @@ class ClickInputPromptWidget():
         # self.__check_for_input_prompts_and_generate()
         self.is_bounding_box_set = self.is_start_bounding_box_set and self.is_end_bounding_box_set
         if self.is_bounding_box_set:
-            add_bounding_box(self.state.current_input_prompts, self.bounding_box)
+            self.state.add_bounding_box(self.bounding_box)
             self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
-                                                self.state.current_input_prompts)
+                                                    self.state.current_input_prompts)
         self.state.trigger_presenter_function()    
 
 class DeleteLastKeypointWidget():
@@ -130,9 +129,9 @@ class DeleteLastKeypointWidget():
     def disable(self):
         self.state.delete_last_keypoint_button.configure(state="disabled")
     def _delete_last_keypoint(self):
-        remove_keypoint(self.state.current_input_prompts)
+        self.state.remove_keypoint()
         self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
-                                                            self.state.current_input_prompts)
+                                                self.state.current_input_prompts)
         self.state.trigger_presenter_function()
 
 class ClearBoundingBoxWidget():
@@ -146,9 +145,9 @@ class ClearBoundingBoxWidget():
     def disable(self):
         self.state.clear_bounding_box_button.configure(state="disabled")
     def _clear_bounding_box(self):
-        remove_bounding_box(self.state.current_input_prompts)
+        self.state.remove_bounding_box()
         self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
-                                                            self.state.current_input_prompts)
+                                                self.state.current_input_prompts)
         self.state.trigger_presenter_function()
 
 
