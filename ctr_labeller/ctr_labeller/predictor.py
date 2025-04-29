@@ -71,8 +71,9 @@ class SAMBatchedPredictor:
     def predict_one(self, image_data, input_prompts):
         image_pixel_num =image_data.image.shape[0] * image_data.image.shape[1]
         self.predictor.set_image(image_data.image)
+        point_coords = np.array(input_prompts["point_coords"]) if input_prompts["point_coords"] != [] else None
         mask, score, _ = self.predictor.predict(
-            point_coords=np.array(input_prompts["point_coords"]),
+            point_coords=point_coords,
             point_labels=input_prompts["point_labels"],
             box=input_prompts["box"],
             multimask_output=False)
@@ -92,7 +93,7 @@ class SAMBatchedPredictor:
         image_data.current_mask_idx = 0
 
     def predict_stereo(self, batch_data, left_input_prompts: dict, right_input_prompts: dict):
-        assert len(left_input_prompts) == len(right_input_prompts)
+        # assert len(left_input_prompts) == len(right_input_prompts)
         batch_size = len(batch_data["frame_id"])
         stereo_image_datas = []
         for i in range(batch_size):

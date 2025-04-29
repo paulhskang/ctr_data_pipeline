@@ -145,13 +145,14 @@ class DeleteLastKeypointWidget():
     def disable(self):
         self.state.delete_last_keypoint_button.configure(state="disabled")
     def _delete_last_keypoint(self):
-        self.state.current_image_data.prediction_outputs = []
-        self.state.current_mask_label = None
+        if self.state.current_input_prompts["point_coords"] != []:
+            self.state.current_image_data.prediction_outputs = []
+            self.state.current_mask_label = None
 
-        self.state.remove_keypoint()
-        self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
-                                                self.state.current_input_prompts)
-        self.state.trigger_presenter_function()
+            self.state.remove_keypoint()
+            self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
+                                                    self.state.current_input_prompts)
+            self.state.trigger_presenter_function()
 
 class ClearBoundingBoxWidget():
     def __init__(self, clear_bounding_box_button, state: ImageSelectorState):
@@ -164,13 +165,14 @@ class ClearBoundingBoxWidget():
     def disable(self):
         self.state.clear_bounding_box_button.configure(state="disabled")
     def _clear_bounding_box(self):
-        self.state.current_image_data.prediction_outputs = []
-        self.state.current_mask_label = None
+        if self.state.current_input_prompts["box"] is not None:
+            self.state.current_image_data.prediction_outputs = []
+            self.state.current_mask_label = None
 
-        self.state.remove_bounding_box()
-        self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
-                                                self.state.current_input_prompts)
-        self.state.trigger_presenter_function()
+            self.state.remove_bounding_box()
+            self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
+                                                    self.state.current_input_prompts)
+            self.state.trigger_presenter_function()
 
 
 class ClickZoomWidget():
