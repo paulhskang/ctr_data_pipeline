@@ -35,7 +35,7 @@ class MaskTogglerWidget():
         self.state.toggle_mask_button.configure(state="disabled")
     def _toggle_mask(self):
         if self.toggle_state:
-            self.select_image_function(ImageSelectionType.IMAGE)
+            self.select_image_function(ImageSelectionType.IMAGE_AND_PROMPT)
             self.toggle_state = False
         else:
             image_data = self.state.current_image_data
@@ -95,6 +95,9 @@ class ClickInputPromptWidget():
         self.state.canvas.bind("<Button-3>", self.__set_end_bounding_box) 
     
     def __set_keypoint(self, event):
+        self.state.current_image_data.prediction_outputs = []
+        self.state.current_mask_label = None
+
         curr_keypoint = [int(event.x * self.state.resize_img_scale), int(event.y * self.state.resize_img_scale)]
         self.state.add_keypoint(curr_keypoint)
         self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
@@ -102,6 +105,9 @@ class ClickInputPromptWidget():
         self.state.trigger_presenter_function()  
     
     def __set_start_bounding_box(self, event):
+        self.state.current_image_data.prediction_outputs = []
+        self.state.current_mask_label = None
+
         self.bounding_box[0] = int(event.x * self.state.resize_img_scale)
         self.bounding_box[1] = int(event.y * self.state.resize_img_scale)
         self.is_start_bounding_box_set = True
@@ -114,6 +120,9 @@ class ClickInputPromptWidget():
         self.state.trigger_presenter_function()
     
     def __set_end_bounding_box(self, event):
+        self.state.current_image_data.prediction_outputs = []
+        self.state.current_mask_label = None
+
         self.bounding_box[2] = int(event.x * self.state.resize_img_scale)
         self.bounding_box[3] = int(event.y * self.state.resize_img_scale)
         self.is_end_bounding_box_set = True
@@ -136,6 +145,9 @@ class DeleteLastKeypointWidget():
     def disable(self):
         self.state.delete_last_keypoint_button.configure(state="disabled")
     def _delete_last_keypoint(self):
+        self.state.current_image_data.prediction_outputs = []
+        self.state.current_mask_label = None
+
         self.state.remove_keypoint()
         self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
                                                 self.state.current_input_prompts)
@@ -152,6 +164,9 @@ class ClearBoundingBoxWidget():
     def disable(self):
         self.state.clear_bounding_box_button.configure(state="disabled")
     def _clear_bounding_box(self):
+        self.state.current_image_data.prediction_outputs = []
+        self.state.current_mask_label = None
+
         self.state.remove_bounding_box()
         self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
                                                 self.state.current_input_prompts)
