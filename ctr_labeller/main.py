@@ -1,11 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 import os
 import torch
 import threading
 import pathlib
 
 from ctr_labeller.ui.apps import CTRLabellerApp, CTRLabellerAppConfig, InputPromptGenerationApp
+from ctr_labeller.ui.controllers import ImageSelectorConfig, ImageSelector, StereoImageSelector, ImageSelectorState
 from ctr_labeller.predictor import SAMBatchedPredictor
 from ctr_labeller.config.utils import parse_config, configure
 from ctr_labeller.dataset import StereoDataSet
@@ -35,6 +37,7 @@ def debug_input(image, input_box, input_point = None):
 class CTRLabellerConfig:
     data_path: str
     app_config: CTRLabellerAppConfig
+    use_gui: bool = True
     create_input_prompts: bool = False
     input_prompt_image_height: int = 1080
     batch_num: int = -1
@@ -115,11 +118,63 @@ def main():
         sam_predictor, stereo_image_queue,
         loader, config, left_input_prompts, right_input_prompts)
 
-    # Labeller App
-    app = CTRLabellerApp(config.app_config, stereo_image_dataset.datasaver, stereo_image_queue)
-    app.start()
-    app.mainloop()
-    
+    if config.use_gui:
+        # Labeller App
+        app = CTRLabellerApp(config.app_config, stereo_image_dataset.datasaver, stereo_image_queue)
+        app.start()
+        app.mainloop()
+    else:
+        try:
+            # on main thread, save masks as they are segmented
+            left_state = ImageSelectorState(config.app_config.selection_image_height_py, config.app_config.zoom_factor)
+            right_state = ImageSelectorState(config.app_config.selection_image_height_py, config.app_config.zoom_factor)
+            selector = StereoImageSelector(
+                ImageSelector(ImageSelectorConfig(), left_state),
+                ImageSelector(ImageSelectorConfig(), right_state)
+            )
+            count = 0
+            ref_size = len(datasaver.reference_dict)
+            print("Num of images: ", ref_size)
+            while True:
+                # get next available mask on queue
+                stereo_image_data = stereo_image_queue.wait_any_available_images_up_to(1)
+                
+                if not stereo_image_data:
+                    continue
+                stereo_image_data = stereo_image_data[0]
+                if datasaver.check_is_mask_processed(stereo_image_data.frame_id):
+                    continue
+                selector.set_context(
+                    stereo_image_data.frame_id,
+                    stereo_image_data.collected_batch_num,
+                    stereo_image_data.left,
+                    stereo_image_data.right,
+                    3)      # ImageSelectionType.MASK_AND_PROMPT
+                selector.left_image_selector.state.current_image_data.is_save_mask = True
+                selector.right_image_selector.state.current_image_data.is_save_mask = True
+                # save mask
+                # frame_id, collected_batch_num, image_left, image_right = CTRLabellerApp.get_selector_current_context(selector)
+                print("Saving frame_id: ", selector.current_frame_id)
+                datasaver.save_current_stereo_masks(selector.current_frame_id,
+                                                    selector.current_collected_batch_num, 
+                                                    selector.left_image_selector.state.current_image_data, 
+                                                    selector.right_image_selector.state.current_image_data)
+                
+                # end program when all images are done
+                num_processed = sum(pd.DataFrame.from_dict(datasaver.reference_dict, orient='index',columns=['is_processed'])["is_processed"])
+                if num_processed  >= ref_size:
+                    print("Finished all ", num_processed, " stereo masks.")
+                    break
+
+                if count >= 50:
+                    datasaver.save_csv()
+                    count = 0
+                count += 1
+        except KeyboardInterrupt:
+            print("Keyboard input: ending offline program.")
+        except:
+            print("Error during offline processing.")
+        
     predictor_thread.exit_flag = True
     predictor_thread.join()
     return
