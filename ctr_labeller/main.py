@@ -85,7 +85,7 @@ def main():
     config = parse_config(CTRLabellerConfig, yaml_arg='--config')
 
     # Load data
-    datasaver = DataSaver(config.data_path, must_have_csv=True, save_image_and_masks= config.save_image_and_masks)
+    datasaver = DataSaver(config.data_path, save_image_and_masks=config.save_image_and_masks)
     stereo_image_dataset = StereoDataSet(config.data_path, datasaver, config.batch_num)
     if len(stereo_image_dataset) == 0:
         print("Dataset has all been processed or empty, terminating!!!")
@@ -118,13 +118,13 @@ def main():
         sam_predictor, stereo_image_queue,
         loader, config, left_input_prompts, right_input_prompts)
 
-    if config.use_gui:
-        # Labeller App
-        app = CTRLabellerApp(config.app_config, stereo_image_dataset.datasaver, stereo_image_queue)
-        app.start()
-        app.mainloop()
-    else:
-        try:
+    try:
+        if config.use_gui:
+            # Labeller App
+            app = CTRLabellerApp(config.app_config, stereo_image_dataset.datasaver, stereo_image_queue)
+            app.start()
+            app.mainloop()
+        else:
             # on main thread, save masks as they are segmented
             left_state = ImageSelectorState(config.app_config.selection_image_height_py, config.app_config.zoom_factor)
             right_state = ImageSelectorState(config.app_config.selection_image_height_py, config.app_config.zoom_factor)
@@ -153,7 +153,6 @@ def main():
                 selector.left_image_selector.state.current_image_data.is_save_mask = True
                 selector.right_image_selector.state.current_image_data.is_save_mask = True
                 # save mask
-                # frame_id, collected_batch_num, image_left, image_right = CTRLabellerApp.get_selector_current_context(selector)
                 print("Saving frame_id: ", selector.current_frame_id)
                 datasaver.save_current_stereo_masks(selector.current_frame_id,
                                                     selector.current_collected_batch_num, 
@@ -170,10 +169,10 @@ def main():
                     datasaver.save_csv()
                     count = 0
                 count += 1
-        except KeyboardInterrupt:
-            print("Keyboard input: ending offline program.")
-        except:
-            print("Error during offline processing.")
+    except KeyboardInterrupt:
+        print("Keyboard input: ending program.")
+    except:
+        print("Error during processing - ending program.")
         
     predictor_thread.exit_flag = True
     predictor_thread.join()

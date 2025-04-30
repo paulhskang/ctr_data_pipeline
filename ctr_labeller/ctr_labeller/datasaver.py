@@ -23,22 +23,16 @@ def convert_dict_list_values_to_arrays(dictionary, exceptions: List):
         dictionary[key] = np.array(dictionary[key])
 
 class DataSaver:
-    def __init__(self, save_root_path, must_have_csv = False, save_image_and_masks = True):
+    def __init__(self, save_root_path, save_image_and_masks = False):
         self.save_root_path = save_root_path
         self.save_image_and_masks = save_image_and_masks
-        # self.fields = ["left_image", "right_image", "is_processed", "left_mask_fail", "right_mask_fail", "left_mask", "right_mask"]
 
-        self.no_initial_csv = False
         self.reference_file_path = os.path.join(save_root_path, "reference.csv")
-        # self.reference_file_path = os.path.join(save_root_path, "results_reference.csv")
         if os.path.isfile(self.reference_file_path):
             data_frame = pd.read_csv(self.reference_file_path, index_col=0)
             self.reference_dict = data_frame.to_dict(orient='index')
-        elif must_have_csv: # MOST LIKELY WE WILL ALWAYS HAVE CSV NOW
-            raise ValueError("must have csv file reference.csv in save_root_path: {}".format(save_root_path))
         else:
-            self.no_initial_csv = True
-            self.reference_dict = {}
+            raise ValueError("Must have csv file reference.csv in save_root_path: {}".format(save_root_path))
 
         self.left_input_prompts = None
         self.right_input_prompts = None
@@ -48,8 +42,9 @@ class DataSaver:
             os.mkdir(self.mask_path)
 
         self.image_and_masks_path = os.path.join(save_root_path, "image_and_masks")
-        if not os.path.exists(self.image_and_masks_path): # Means no format path
-            os.mkdir(self.image_and_masks_path)
+        if self.save_image_and_masks:
+            if not os.path.exists(self.image_and_masks_path): # Means no format path
+                os.mkdir(self.image_and_masks_path)
 
         atexit.register(self.__destructor)
 
@@ -77,20 +72,18 @@ class DataSaver:
         
         # Image and masks
         relative_image_and_mask_path_from_root = ""
-        if not self.save_image_and_masks:
-            return relative_mask_path_from_root, relative_image_and_mask_path_from_root
-
-        # if os.path.exists(fullpath_image_and_mask): # Not working properly
-        #     print("{} path exists! Overriding".format(fullpath_image_and_mask))
-        try:
-            os.makedirs(os.path.join(self.image_and_masks_path, str(collected_batch_num)))
-        except FileExistsError:
-            pass
-        image_and_mask_name = "image_and_mask_{}".format(image_data.name)
-        fullpath_image_and_mask = os.path.join(self.image_and_masks_path, str(collected_batch_num), image_and_mask_name)
-        cv2.imwrite(fullpath_image_and_mask, cv2.cvtColor(current_prediction_output.masked_image, cv2.COLOR_RGB2BGR))
-        relative_image_and_mask_path_from_root = os.path.join(
-            os.path.split(self.image_and_masks_path)[1], str(collected_batch_num), image_and_mask_name)
+        if self.save_image_and_masks:
+            # if os.path.exists(fullpath_image_and_mask): # Not working properly
+            #     print("{} path exists! Overriding".format(fullpath_image_and_mask))
+            try:
+                os.makedirs(os.path.join(self.image_and_masks_path, str(collected_batch_num)))
+            except FileExistsError:
+                pass
+            image_and_mask_name = "image_and_mask_{}".format(image_data.name)
+            fullpath_image_and_mask = os.path.join(self.image_and_masks_path, str(collected_batch_num), image_and_mask_name)
+            cv2.imwrite(fullpath_image_and_mask, cv2.cvtColor(current_prediction_output.masked_image, cv2.COLOR_RGB2BGR))
+            relative_image_and_mask_path_from_root = os.path.join(
+                os.path.split(self.image_and_masks_path)[1], str(collected_batch_num), image_and_mask_name)
 
         return relative_mask_path_from_root, relative_image_and_mask_path_from_root
 
@@ -110,8 +103,9 @@ class DataSaver:
         self.reference_dict[frame_id]["right_mask_fail"] = not image_data_right.is_save_mask
         self.reference_dict[frame_id]["left_mask_path"] = left_mask_path
         self.reference_dict[frame_id]["right_mask_path"] = right_mask_path
-        self.reference_dict[frame_id]["left_image_and_mask_path"] = left_image_and_mask_path
-        self.reference_dict[frame_id]["right_image_and_mask_path"] = right_image_and_mask_path
+        if self.save_image_and_masks:
+            self.reference_dict[frame_id]["left_image_and_mask_path"] = left_image_and_mask_path
+            self.reference_dict[frame_id]["right_image_and_mask_path"] = right_image_and_mask_path
 
     def __destructor(self):
         self.save_csv()
