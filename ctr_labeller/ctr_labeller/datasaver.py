@@ -50,11 +50,13 @@ class DataSaver:
 
     def check_is_mask_processed(self, frame_id):
         if not "is_processed" in self.reference_dict[frame_id]:
-            return False    
+            return False
         is_processed = self.reference_dict[frame_id]["is_processed"]
         if pd.isna(is_processed):
             return False
-        return is_processed
+        left_mask_fail = self.reference_dict[frame_id]["left_mask_fail"]
+        right_mask_fail = self.reference_dict[frame_id]["right_mask_fail"]
+        return (is_processed and not left_mask_fail and not right_mask_fail)
     
     def __save_current_mask(self, image_data, collected_batch_num):
         current_prediction_output = image_data.prediction_outputs[image_data.current_mask_idx]
