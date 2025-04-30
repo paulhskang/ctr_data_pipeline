@@ -52,6 +52,7 @@ class SAMBatchedPredictorThread(threading.Thread):
         self.config = config
         self.left_input_prompts = left_input_prompts
         self.right_input_prompts = right_input_prompts
+        self.exit_flag = False
 
         self.start()
 
@@ -62,6 +63,9 @@ class SAMBatchedPredictorThread(threading.Thread):
         # is_last_batch = False
         batch_idx = 0
         for batch in self.dataloader:
+            if self.exit_flag:
+                print ("SAMBatchedPredictorThread | Exiting thread")
+                return
             # if batch_idx >= batch_len - 1:
             #     is_last_batch = True
             print("SAMBatchedPredictorThread | predicting frame_ids: {} ".format(batch["frame_id"].cpu().detach().numpy()))
@@ -69,6 +73,8 @@ class SAMBatchedPredictorThread(threading.Thread):
             self.stereo_image_queue.wait_add_images(stereo_image_datas)
             batch_idx += 1
             num = num + len(batch)
+            print("SAMBatchedPredictorThread | finished frame_ids: {} ".format(batch["frame_id"].cpu().detach().numpy()))
+
         print ("SAMBatchedPredictorThread | ------ BATCH IS DONE ------")
 
 def main():
@@ -85,7 +91,7 @@ def main():
     sam_predictor = SAMBatchedPredictor(datasaver, config.sort_based_on)
 
     # Input prompt generation
-    if datasaver.is_input_prompts_available and not config.create_input_prompts:
+    if datasaver.is_input_prompts_available() and not config.create_input_prompts:
         left_input_prompts, right_input_prompts = datasaver.get_input_prompts()
     else:
         input_prompt_app = InputPromptGenerationApp(
@@ -95,8 +101,10 @@ def main():
         input_prompt_app.start()
         input_prompt_app.mainloop()
         left_input_prompts, right_input_prompts = input_prompt_app.get_input_prompts()
-        print("Selected input prompts", left_input_prompts, right_input_prompts)
         input_prompt_app.destroy()
+    datasaver.save_input_prompts(left_input_prompts, right_input_prompts)
+    # print("Left input prompts: ", left_input_prompts)
+    # print("Right input prompts: ", right_input_prompts)
 
     # SAM Create Masks
     grid_num = config.app_config.selection_grid_size[0] * config.app_config.selection_grid_size[1]
@@ -112,8 +120,7 @@ def main():
     app.start()
     app.mainloop()
     
-    if datasaver.is_input_prompts_available == False:
-        datasaver.save_input_prompts(left_input_prompts, right_input_prompts)
+    predictor_thread.exit_flag = True
     predictor_thread.join()
     return
 

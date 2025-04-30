@@ -47,9 +47,9 @@ class DataSaver:
         if not os.path.exists(self.mask_path): # Means no format path
             os.mkdir(self.mask_path)
 
-        # self.image_and_masks_path = os.path.join(save_root_path, "image_and_masks")
-        # if not os.path.exists(self.image_and_masks_path): # Means no format path
-        #     os.mkdir(self.image_and_masks_path)
+        self.image_and_masks_path = os.path.join(save_root_path, "image_and_masks")
+        if not os.path.exists(self.image_and_masks_path): # Means no format path
+            os.mkdir(self.image_and_masks_path)
 
         atexit.register(self.__destructor)
 
@@ -114,10 +114,7 @@ class DataSaver:
         self.reference_dict[frame_id]["right_image_and_mask_path"] = right_image_and_mask_path
 
     def __destructor(self):
-        df = pd.DataFrame.from_dict(self.reference_dict, orient='index')
-        df.index.name = "frame_id"
-        df.to_csv(self.reference_file_path)
-        print("DataSaver | Finished saving reference.csv")
+        self.save_csv()
 
     def save_csv(self):
         df = pd.DataFrame.from_dict(self.reference_dict, orient='index')
