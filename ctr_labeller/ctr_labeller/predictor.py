@@ -107,11 +107,14 @@ class SAMBatchedPredictor:
             # self.update_input_prompts(frame_id, left_input_prompts, right_input_prompts)        # should not apply if through UI (offline only)
             left_image_data = ImageData(batch_data["left_image"][i].cpu().detach().numpy(),
                                         batch_data["left_image_name"][i],
-                                        batch_data["left_image_path"][i])
+                                        batch_data["left_image_path"][i],
+                                        batch_data["frame_id"][i])
             self.predict_one(left_image_data, left_input_prompts)
             right_image_data = ImageData(batch_data["right_image"][i].cpu().detach().numpy(),
                                          batch_data["right_image_name"][i],
-                                         batch_data["right_image_path"][i])
+                                         batch_data["right_image_path"][i],
+                                         batch_data["frame_id"][i])
+
             self.predict_one(right_image_data, right_input_prompts)
             stereo_image_datas.append(
                 StereoImageData2(frame_id=frame_id, collected_batch_num=collected_batch_num, left=left_image_data, right=right_image_data))

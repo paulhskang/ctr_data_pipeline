@@ -155,10 +155,12 @@ class InputPromptGenerationApp(tk.Tk):
         frame = self.stereo_image_dataset[0]
         left_image_data = ImageData(frame["left_image"],
                                     frame["left_image_name"],
-                                    frame["left_image_path"])
+                                    frame["left_image_path"],
+                                    frame["frame_id"])
         right_image_data = ImageData(frame["right_image"],
                                      frame["right_image_name"],
-                                     frame["right_image_path"])
+                                     frame["right_image_path"],
+                                     frame["frame_id"])
         self.stereo_img_selector.set_context(frame["frame_id"], frame["collected_batch_num"], left_image_data, right_image_data, ImageSelectionType.IMAGE)
         self.stereo_img_presenter.present_current_state()
         self.protocol('WM_DELETE_WINDOW', self._exit)

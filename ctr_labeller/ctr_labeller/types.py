@@ -18,6 +18,7 @@ class ImageData:
     image: np.ndarray
     name: str
     path: str
+    frame_id: int
     # Sam Processing
     current_mask_idx: int = -1
     prediction_outputs: List[PredictionOutput] = field(default_factory=lambda: [])

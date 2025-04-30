@@ -102,7 +102,7 @@ class ClickInputPromptWidget():
         self.state.add_keypoint(curr_keypoint)
         self.state.current_image = create_img_with_input_prompts(self.state.current_image_data.image,\
                                                 self.state.current_input_prompts)
-        self.state.trigger_presenter_function()  
+        self.state.trigger_presenter_function()
     
     def __set_start_bounding_box(self, event):
         self.state.current_image_data.prediction_outputs = []
@@ -255,12 +255,15 @@ class ImageSelector:
             return
         elif selection == ImageSelectionType.IMAGE:
             self.state.current_image = copy.deepcopy(self.state.current_image_data.image)
-            self.state.current_image_label = "Image: {}".format(self.state.current_image_data.name)
+            self.state.current_image_label = "Image: {},\nFrame ID: {}".format(
+                    self.state.current_image_data.name,
+                    self.state.current_image_data.frame_id)
             self.state.current_mask_label = None
             return
         elif selection == ImageSelectionType.IMAGE_AND_PROMPT:
-            print(self.state.current_input_prompts)
-            self.state.current_image_label = "Image: {}".format(self.state.current_image_data.name)
+            self.state.current_image_label = "Image: {},\nFrame ID: {}".format(
+                    self.state.current_image_data.name,
+                    self.state.current_image_data.frame_id)
             self.state.current_mask_label = None
             self.state.current_image = create_img_with_input_prompts(
                 self.state.current_image_data.image,
@@ -274,7 +277,9 @@ class ImageSelector:
         self.state.current_image = create_img_with_input_prompts(
             pred_output.masked_image,
             pred_output.input_prompt)
-        self.state.current_image_label = "Image: {}".format(image_data.name)
+        self.state.current_image_label = "Image: {},\nFrame ID: {}".format(
+            image_data.name,
+            image_data.frame_id)
         self.state.current_mask_label = "Mask: {},\nscore: {:.5f}, area_ratio: {:.5f}".format(
             pred_output.input_prompt["name"],
             pred_output.score,
