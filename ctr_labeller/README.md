@@ -27,12 +27,12 @@ Automatic download doesn't work for now.
 Masks are created in the same directory as the reference file. Structure for reference file and newly created masks/images by SAM:
 ```
 ├── some_folder_on_computer
-|   |── jul24                   # data for one set of tubes
-|       |- reference.csv        # reference file
-|       |- input_prompts        # created by this program
-|       |- imgs                 # main folder for data
+|   |── some_robot_configuration    # data for a set of tubes
+|       |- reference.csv            # reference file
+|       |- input_prompts.json       # created by this program
+|       |- imgs                     # main folder for collected image data
 |           |── run1                # different folders per run as data collection could be done over several days
-|               |- 0                # batch numbers to limit number of images per folder (currently 1000 pairs per)
+|               |- 0                # batch images to limit number of images per folder (makes moving folders easier)
 |                   |- filename1_cam0.jpg
 |                   |- filename1_cam1.jpg
 |                   |- ...
@@ -52,7 +52,7 @@ Masks are created in the same directory as the reference file. Structure for ref
 |                   |- ...
 |               |- ...
 |           |── ...
-|       |- masks                # created by this program
+|       |- masks                    # created by this program
 |           |- 0
 |               |- mask_filename1_cam0.jpg
 |               |- mask_filename1_cam1.jpg
@@ -62,47 +62,45 @@ Masks are created in the same directory as the reference file. Structure for ref
 |               |- mask_filename1001_cam1.jpg
 |               |- ...
 |           |- ...
-|       |- image_and_masks                # created by this program
+|       |- image_and_masks          # created by this program (not default)
 ```
 
-One single reference csv file should hold all the relative paths to each stereoimage pair.
+One single reference csv file should hold all the relative paths to each stereoimage pair with at least the following columns:
 
-| frame_id      | Joints (12 total) | batch_num | left_image_path | right_image_path |
+| frame_id      | batch_num | left_image_path | right_image_path |
 | ----------- | ----------- | ----------- | ----------- | ----------- |
-| 1 | ## | 0 | /imgs/run1/0/filename1_cam0.jpg | /imgs/run1/0/filename1_cam1.jpg |
-| 2 | ## | 0 | /imgs/run1/0/filename2_cam0.jpg | /imgs/run1/0/filename2_cam1.jpg |
+| 1 | 0 | /imgs/run1/0/filename1_cam0.jpg | /imgs/run1/0/filename1_cam1.jpg |
+| 2 | 0 | /imgs/run1/0/filename2_cam0.jpg | /imgs/run1/0/filename2_cam1.jpg |
+| ... | ... | ... | ... |
 
 # Run
-To run GUI program:
+To run program:
 ```bash
-python main_ui.py --config config/config.yaml --data-path /path/to/reference/file/folder
-python main_ui.py --config config/config.yaml --data-path /home/pkang/OneDrive/linux_sync/data/ctr/runs/test
+python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True --create-input-prompts True
 ```
 
-To run offline segmentation program:
-```bash
-python main_offline.py --config config/config.yaml --data-path /path/to/reference/file/folder
-```
+# Usage
+Refer to [reference doc]
+
+# Authors
+Authors are listed in alphabetic order.
+
+# License
+BSD 3-Clause License
+
+# BibTeX
+If you want to reference this project, you can use the following citation:
+
 
 # TODO:
-- Multithreaded dataloader
-- Diplay which frames on screen/in terminal?
-- create new prompts during ui
-- allow for multiple prompts
-- remove mask and image
-- fix incorrect masks? if known it is bad (e.g., mask fails?)
-- update prompts online with mask generation
-
+- update prompts online with mask generation midway -- but background batching?
+- should work without image batches in paths?
 - pyhton recon? all embeded into gui
-- exit plan
-
-current workflow:
-- if no prompts, create one new at start
-    - this is ideal for all dataset (e.g., as multiple points won't appl yto all configs) but not for troubleshooting
-- exit with ctrl-c
+- usage doc
+- clean up code
 
 desired workflow:
 - more integrated workflow? e.g., all in python with minimal work or run matlab in python
     - automated reconstruction: calibration of xy-plane with qr code on the trocar face
 - flexibility: allow use of ui or offline pipelines
-    - ours: offline processing then verify images then UI troubleshooting (find wrong pairs, fix masks or reconstructions by new input prompts )
+    - ours: offline processing then verify images (and note bad masks/reconstructions) then UI troubleshooting (fix masks or reconstructions by new input prompts)
