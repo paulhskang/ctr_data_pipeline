@@ -72,10 +72,12 @@ class SAMBatchedPredictor:
         image_pixel_num =image_data.image.shape[0] * image_data.image.shape[1]
         self.predictor.set_image(image_data.image)
         point_coords = np.array(input_prompts["point_coords"]) if input_prompts["point_coords"] != [] else None
+        point_labels = np.array(input_prompts["point_labels"]) if input_prompts["point_labels"] != [] else None
+        box = np.array(input_prompts["box"]) if input_prompts["box"] is not None else None
         mask, score, _ = self.predictor.predict(
             point_coords=point_coords,
-            point_labels=input_prompts["point_labels"],
-            box=input_prompts["box"],
+            point_labels=point_labels,
+            box=box,
             multimask_output=False)
         area_ratio = len(np.column_stack(np.where(mask > 0))) / image_pixel_num
         prediction_output = PredictionOutput(

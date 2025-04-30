@@ -67,7 +67,7 @@ class GenerateMaskTogglerWidget():
 class ClickInputPromptWidget():
     def __init__(self, toggle_type_button, state: ImageSelectorState):
         self.state = state
-        self.bounding_box = np.array([0, 0, 0, 0])
+        self.bounding_box = [0, 0, 0, 0]
         self.is_start_bounding_box_set = False
         self.is_end_bounding_box_set = False
         self.is_bounding_box_set = False

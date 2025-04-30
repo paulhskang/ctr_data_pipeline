@@ -42,19 +42,6 @@ class DataSaver:
 
         self.left_input_prompts = None
         self.right_input_prompts = None
-        self.is_input_prompts_available = False
-        # self.prompts_file_path = os.path.join(save_root_path, "input_prompts.json")
-        self.prompts_file_path = "./input_prompts.json" # keep json in same folder
-        if os.path.isfile(self.prompts_file_path):
-            self.is_input_prompts_available = True
-            f = open(self.prompts_file_path)
-            data = json.load(f)
-            for input_prompt in data["left_input_prompts"]:
-                convert_dict_list_values_to_arrays(input_prompt, ["name"])
-            for input_prompt in data["right_input_prompts"]:
-                convert_dict_list_values_to_arrays(input_prompt, ["name"])
-            self.left_input_prompts = data["left_input_prompts"]
-            self.right_input_prompts = data["right_input_prompts"]
 
         self.mask_path = os.path.join(save_root_path, "masks")
         if not os.path.exists(self.mask_path): # Means no format path
@@ -138,23 +125,29 @@ class DataSaver:
         df.to_csv(self.reference_file_path)
         print("DataSaver | Finished saving reference.csv")
 
+    def is_input_prompts_available(self):
+        try:
+            self.prompts_file_path = os.path.join(self.save_root_path, "input_prompts.json")
+            if os.path.isfile(self.prompts_file_path):
+                f = open(self.prompts_file_path)
+                data = json.load(f)
+                self.left_input_prompts = data["left_input_prompts"]
+                self.right_input_prompts = data["right_input_prompts"]
+                if (self.left_input_prompts["point_coords"] != [] or self.left_input_prompts["box"] is not None) \
+                    and (self.right_input_prompts["point_coords"] != [] or self.right_input_prompts["box"] is not None):
+                    return True
+        except:
+            print("No or invalid or failed to load input prompt file.")
+        return False
+
     def get_input_prompts(self):
         return self.left_input_prompts, self.right_input_prompts
     
-    def save_input_prompts(self, left_input_prompts, right_input_prompts, filename = ""):
+    def save_input_prompts(self, left_input_prompts, right_input_prompts):
         left_input_prompts = copy.deepcopy(left_input_prompts)
         right_input_prompts = copy.deepcopy(right_input_prompts)
-        file_to_save = "input_prompts.json"
-        if filename != "":
-            file_to_save = filename
-        for input_prompt in left_input_prompts:
-            convert_dict_array_values_to_lists(input_prompt, ["name"])
-        for input_prompt in right_input_prompts:
-            convert_dict_array_values_to_lists(input_prompt, ["name"])
-
-        entire_dict = {}
-        entire_dict["right_input_prompts"] = right_input_prompts
-        entire_dict["left_input_prompts"] = left_input_prompts
-        
-        with open(os.path.join(self.save_root_path, file_to_save), 'w') as f:
-            json.dump(entire_dict, f, ensure_ascii=False, indent=2)
+        left_right_input_prompts = {}
+        left_right_input_prompts["right_input_prompts"] = right_input_prompts
+        left_right_input_prompts["left_input_prompts"] = left_input_prompts
+        with open(self.prompts_file_path, 'w') as f:
+            json.dump(left_right_input_prompts, f, ensure_ascii=False, indent=2)

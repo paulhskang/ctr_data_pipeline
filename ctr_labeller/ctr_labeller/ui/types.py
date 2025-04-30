@@ -44,7 +44,7 @@ class ImageSelectorState:
             "name": "None",
             "box": None,
             "point_coords": [],
-            "point_labels": None
+            "point_labels": []
         }
         self.current_image_data: ImageData = None
         self.current_image = None
@@ -57,12 +57,13 @@ class ImageSelectorState:
 
     def add_keypoint(self, keypoint):
         self.current_input_prompts["point_coords"].append(keypoint)
-        self.current_input_prompts["point_labels"] = np.ones((len(self.current_input_prompts["point_coords"],)))
+        self.current_input_prompts["point_labels"].append(1)
         self.update_input_prompt_name()
 
     def remove_keypoint(self):
-        if self.current_input_prompts["point_coords"] != []: self.current_input_prompts["point_coords"].pop()
-        self.current_input_prompts["point_labels"] = np.ones((len(self.current_input_prompts["point_coords"],)))
+        if self.current_input_prompts["point_coords"] != []:
+            self.current_input_prompts["point_coords"].pop()
+            self.current_input_prompts["point_labels"].pop()
         self.update_input_prompt_name()
 
     def add_bounding_box(self, bounding_box):
