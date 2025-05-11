@@ -123,7 +123,6 @@ def main():
                     continue
                 selector.set_context(
                     stereo_image_data.frame_id,
-                    stereo_image_data.collected_batch_num,
                     stereo_image_data.left,
                     stereo_image_data.right,
                     ImageSelectionType.MASK_AND_PROMPT)
@@ -132,7 +131,6 @@ def main():
                 # save mask
                 print("Main | Saving frame_id: ", selector.current_frame_id)
                 datasaver.save_current_stereo_masks(selector.current_frame_id,
-                                                    selector.current_collected_batch_num, 
                                                     selector.left_image_selector.state.current_image_data, 
                                                     selector.right_image_selector.state.current_image_data)
                 

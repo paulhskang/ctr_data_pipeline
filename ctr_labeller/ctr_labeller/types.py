@@ -29,7 +29,6 @@ class ImageData:
 @dataclass 
 class StereoImageData:
     frame_id: str
-    collected_batch_num: str
     left: ImageData
     right: ImageData
 

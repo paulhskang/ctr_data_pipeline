@@ -67,7 +67,6 @@ class CTRLabellerApp(tk.Tk):
                 continue
             self.selectors[selection_idx].set_context(
                 stereo_image_data.frame_id,
-                stereo_image_data.collected_batch_num,
                 stereo_image_data.left,
                 stereo_image_data.right,
                 ImageSelectionType.MASK_AND_PROMPT)
@@ -87,13 +86,13 @@ class CTRLabellerApp(tk.Tk):
         for selector in self.selectors:
             if not selector.is_active:
                 continue
-            frame_id, collected_batch_num, image_left, image_right = CTRLabellerApp.get_selector_current_context(selector)
-            self.datasaver.save_current_stereo_masks(frame_id, collected_batch_num, image_left, image_right)
+            frame_id, image_left, image_right = CTRLabellerApp.get_selector_current_context(selector)
+            self.datasaver.save_current_stereo_masks(frame_id, image_left, image_right)
 
     def get_selector_current_context(selector):
         selector.left_image_selector.state.current_image_data.is_save_mask = selector.left_image_selector.state.is_select_var.get()
         selector.right_image_selector.state.current_image_data.is_save_mask = selector.right_image_selector.state.is_select_var.get()
-        return selector.current_frame_id, selector.current_collected_batch_num, selector.left_image_selector.state.current_image_data, selector.right_image_selector.state.current_image_data
+        return selector.current_frame_id, selector.left_image_selector.state.current_image_data, selector.right_image_selector.state.current_image_data
         
     
     def __disable_all(self):
@@ -147,7 +146,7 @@ class InputPromptGenerationApp(tk.Tk):
                                      frame["right_image_name"],
                                      frame["right_image_path"],
                                      frame["frame_id"])
-        self.stereo_img_selector.set_context(frame["frame_id"], frame["collected_batch_num"], left_image_data, right_image_data, ImageSelectionType.IMAGE)
+        self.stereo_img_selector.set_context(frame["frame_id"], left_image_data, right_image_data, ImageSelectionType.IMAGE)
         self.stereo_img_presenter.present_current_state()
         self.protocol('WM_DELETE_WINDOW', self._exit)
         self.bind("n", self._exit_e)

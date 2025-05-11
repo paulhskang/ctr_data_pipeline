@@ -98,7 +98,6 @@ class SAMBatchedPredictor:
         stereo_image_datas = []
         for i in range(batch_size):
             frame_id = batch_data["frame_id"][i].item()
-            collected_batch_num = batch_data["collected_batch_num"][i].item()
             if self.data_saver.check_is_mask_processed(frame_id):
                 continue
             # only update input prompts if offline masking
@@ -115,7 +114,7 @@ class SAMBatchedPredictor:
 
             self.predict_one(right_image_data, right_input_prompts)
             stereo_image_datas.append(
-                StereoImageData(frame_id=frame_id, collected_batch_num=collected_batch_num, left=left_image_data, right=right_image_data))
+                StereoImageData(frame_id=frame_id, left=left_image_data, right=right_image_data))
         return stereo_image_datas
 
     # Might still want these, batched prediction

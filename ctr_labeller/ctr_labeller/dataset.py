@@ -18,7 +18,6 @@ class StereoDataSet(torch.utils.data.Dataset):
                 continue
             frame_info = {
                 "frame_id": key,
-                "collected_batch_num": value["batch_num"],
                 "left_image_path": os.path.join(root_path, value["left_image_path"]),
                 "right_image_path": os.path.join(root_path, value["right_image_path"])}
             frame_info["left_image_name"] = os.path.split(frame_info["left_image_path"])[1]
@@ -32,10 +31,10 @@ class StereoDataSet(torch.utils.data.Dataset):
             return True
         if batch_num >= 0:
             if not "batch_num" in value:
-                print("Stereo DatasSet | Warning!!! batch_num specified, " + 
+                print("Stereo DataSet | Warning!!! batch_num specified, " + 
                         "but batch_num not found in reference.csv, will process this frame [{}]".format(key))
             elif math.isnan(value["batch_num"]):
-                print("Stereo DatasSet | Warning!!! batch_num specified, " + 
+                print("Stereo DataSet | Warning!!! batch_num specified, " + 
                         "but batch_num is empty in reference.csv, will process this frame [{}]".format(key))
             elif batch_num != value["batch_num"]:
                 return True

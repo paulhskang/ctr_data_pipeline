@@ -76,7 +76,7 @@ python main.py --config config/config.yaml --data-path /path/to/reference/file/f
 
 or if you have an input prompt json in the data folder, to load:
 ```bash
-python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True --input-prompt-json-name input_prompt.json
+python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True --input-prompt-json-name input_prompts.json
 ```
 
 # Usage

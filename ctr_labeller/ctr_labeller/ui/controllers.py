@@ -300,20 +300,17 @@ class StereoImageSelector:
         self.left_image_selector = left_image_selector
         self.right_image_selector = right_image_selector
         self.current_frame_id = -1
-        self.current_collected_batch_num = -1
         self.is_active = False
         self.disable_context()
 
-    def set_context(self, frame_id, collected_batch_num, left_img_data, right_img_data, selection: ImageSelectionType):
+    def set_context(self, frame_id, left_img_data, right_img_data, selection: ImageSelectionType):
         self.current_frame_id = frame_id
-        self.current_collected_batch_num = collected_batch_num
         self.left_image_selector.set_context(left_img_data, selection)
         self.right_image_selector.set_context(right_img_data, selection)
         self.is_active = True
 
     def disable_context(self):
         self.current_frame_id = -1
-        self.current_collected_batch_num = -1
         self.left_image_selector.disable_context()
         self.right_image_selector.disable_context()
         self.is_active = False

@@ -8,6 +8,7 @@ import numpy as np
 import os
 import pandas as pd
 from typing import List
+from ctr_labeller.types import ImageData
 
 from ctr_labeller.types import convert_mask_torch_to_opencv
 
@@ -40,15 +41,6 @@ class DataSaver:
         self.left_input_prompts = None
         self.right_input_prompts = None
 
-        self.mask_path = os.path.join(save_root_path, "masks")
-        if not os.path.exists(self.mask_path):
-            os.mkdir(self.mask_path)
-
-        self.image_and_masks_path = os.path.join(save_root_path, "image_and_masks")
-        if self.save_image_appended_with_masks:
-            if not os.path.exists(self.image_and_masks_path):
-                os.mkdir(self.image_and_masks_path)
-
         atexit.register(self.__destructor)
 
     def check_is_mask_processed(self, frame_id):
@@ -61,46 +53,41 @@ class DataSaver:
         right_mask_fail = self.reference_dict[frame_id]["right_mask_fail"]
         return (is_processed and not left_mask_fail and not right_mask_fail)
     
-    def __save_current_mask(self, image_data, collected_batch_num):
-        current_prediction_output = image_data.prediction_outputs[image_data.current_mask_idx]
+    def __save_image_instance(self, image, image_name, image_data_path, prepend_img_str, prepend_folder):
+       # image_data.path is full path
+        mask_folder_from_root = os.path.join(os.path.split(image_data_path)[0], prepend_folder)
+        if not os.path.isdir(mask_folder_from_root):
+            os.makedirs(mask_folder_from_root)
 
-        # if os.path.exists(fullpath_mask): # Not working properly
-        #     print("{} path exists! Overriding".format(fullpath_mask))
-        try:
-            os.makedirs(os.path.join(self.mask_path, str(collected_batch_num)))
-        except FileExistsError:
-            pass
-        mask_name = "mask_{}".format(image_data.name)
-        fullpath_mask = os.path.join(self.mask_path, str(collected_batch_num), mask_name)
-        cv2.imwrite(fullpath_mask, convert_mask_torch_to_opencv(current_prediction_output.mask))
-        relative_mask_path_from_root = os.path.join(os.path.split(self.mask_path)[1], str(collected_batch_num), mask_name)
+        save_image_name = prepend_img_str + "{}".format(image_name)
+        fullpath_image = os.path.join(mask_folder_from_root, save_image_name)
+        cv2.imwrite(fullpath_image, image)
+        relative_image_path_from_save_folder = os.path.relpath(self.save_root_path, fullpath_image)
+        return relative_image_path_from_save_folder
+
+    def __save_current_mask(self, image_data: ImageData):
+        current_prediction_output = image_data.prediction_outputs[image_data.current_mask_idx]
         
-        # Image and masks
+        relative_mask_path_from_save_folder = self.__save_image_instance(image=convert_mask_torch_to_opencv(current_prediction_output.mask),
+                                                                         image_name=image_data.name, image_data_path=image_data.path,
+                                                                         prepend_img_str="mask_", prepend_folder="masks")
         relative_image_and_mask_path_from_root = ""
         if self.save_image_appended_with_masks:
-            # if os.path.exists(fullpath_image_and_mask): # Not working properly
-            #     print("{} path exists! Overriding".format(fullpath_image_and_mask))
-            try:
-                os.makedirs(os.path.join(self.image_and_masks_path, str(collected_batch_num)))
-            except FileExistsError:
-                pass
-            image_and_mask_name = "image_and_mask_{}".format(image_data.name)
-            fullpath_image_and_mask = os.path.join(self.image_and_masks_path, str(collected_batch_num), image_and_mask_name)
-            cv2.imwrite(fullpath_image_and_mask, cv2.cvtColor(current_prediction_output.masked_image, cv2.COLOR_RGB2BGR))
-            relative_image_and_mask_path_from_root = os.path.join(
-                os.path.split(self.image_and_masks_path)[1], str(collected_batch_num), image_and_mask_name)
+            relative_image_and_mask_path_from_root = self.__save_image_instance(image=cv2.cvtColor(current_prediction_output.masked_image, cv2.COLOR_RGB2BGR),
+                                                                         image_name=image_data.name, image_data_path=image_data.path,
+                                                                         prepend_img_str="image_and_mask_", prepend_folder="image_and_masks")
+        return relative_mask_path_from_save_folder, relative_image_and_mask_path_from_root
 
-        return relative_mask_path_from_root, relative_image_and_mask_path_from_root
-
-    def save_current_stereo_masks(self, frame_id, collected_batch_num, image_data_left, image_data_right):
+    def save_current_stereo_masks(self, frame_id,
+                                  image_data_left: ImageData, image_data_right: ImageData):
         left_mask_path = ""
-        left_image_and_mask_path = ""
+        rel_left_image_and_mask_path = ""
         if image_data_left.is_save_mask:
-            left_mask_path, left_image_and_mask_path = self.__save_current_mask(image_data_left, collected_batch_num)
+            left_mask_path, rel_left_image_and_mask_path = self.__save_current_mask(image_data_left)
         right_mask_path = ""
-        right_image_and_mask_path = ""
+        rel_right_image_and_mask_path = ""
         if image_data_right.is_save_mask:
-            right_mask_path, right_image_and_mask_path = self.__save_current_mask(image_data_right, collected_batch_num)
+            right_mask_path, rel_right_image_and_mask_path = self.__save_current_mask(image_data_right)
 
         # Initial csv has left_image_path and right_image_path
         self.reference_dict[frame_id]["is_processed"] = True
@@ -109,8 +96,8 @@ class DataSaver:
         self.reference_dict[frame_id]["left_mask_path"] = left_mask_path
         self.reference_dict[frame_id]["right_mask_path"] = right_mask_path
         if self.save_image_appended_with_masks:
-            self.reference_dict[frame_id]["left_image_and_mask_path"] = left_image_and_mask_path
-            self.reference_dict[frame_id]["right_image_and_mask_path"] = right_image_and_mask_path
+            self.reference_dict[frame_id]["left_image_and_mask_path"] = rel_left_image_and_mask_path
+            self.reference_dict[frame_id]["right_image_and_mask_path"] = rel_right_image_and_mask_path
 
     def __destructor(self):
         self.save_csv()
@@ -126,18 +113,19 @@ class DataSaver:
             return False
         prompts_file_path = os.path.join(self.save_root_path, self.input_prompt_json_name)
         if not os.path.isfile(prompts_file_path):
-            print("DataSaver | Failed to load input prompt file [{}].".format(self.input_prompt_json_name))
+            print("DataSaver | No input prompt file [{}].".format(self.input_prompt_json_name))
             return False
-        
-        f = open(prompts_file_path)
-        data = json.load(f)
-        self.left_input_prompts = data["left_input_prompts"]
-        self.right_input_prompts = data["right_input_prompts"]
-        if (self.left_input_prompts["point_coords"] != [] or self.left_input_prompts["box"] is not None) \
-            and (self.right_input_prompts["point_coords"] != [] or self.right_input_prompts["box"] is not None):
-            return True
+        try:
+            f = open(prompts_file_path)
+            data = json.load(f)
+            self.left_input_prompts = data["left_input_prompts"]
+            self.right_input_prompts = data["right_input_prompts"]
+            if (self.left_input_prompts["point_coords"] != [] or self.left_input_prompts["box"] is not None) \
+                and (self.right_input_prompts["point_coords"] != [] or self.right_input_prompts["box"] is not None):
+                return True
+        except:
+            print("DataSaver | Input prompts from [{}] not in valid format".format(self.input_prompt_json_name))
         # else:
-        print("DataSaver | Input prompts from [{}] not in valid format".format(self.input_prompt_json_name))
         return False
 
     def get_input_prompts(self):
