@@ -2,15 +2,13 @@ import cv2
 import numpy as np
 import operator
 import torch
-import sys
-
 from typing import List
+import sys
 
 sys.path.append("..")
 from segment_anything import sam_model_registry, SamPredictor
 from segment_anything.utils.transforms import ResizeLongestSide
-from ctr_labeller.types import ImageData, PredictionOutput, StereoImageData2
-
+from ctr_labeller.types import ImageData, PredictionOutput, StereoImageData
 
 def apply_mask(image, mask, random_color=False):
     if random_color:
@@ -24,7 +22,7 @@ def apply_mask(image, mask, random_color=False):
 from segment_anything.utils.transforms import ResizeLongestSide
 
 def prepare_image(image, transform, device):
-    np_image = image.cpu().detach().numpy() # This is so weird to make numpy again
+    np_image = image.cpu().detach().numpy()
     new_image = transform.apply_image(np_image)
     new_image = torch.as_tensor(new_image, device=device.device)
     return new_image.permute(2, 0, 1).contiguous()
@@ -117,43 +115,10 @@ class SAMBatchedPredictor:
 
             self.predict_one(right_image_data, right_input_prompts)
             stereo_image_datas.append(
-                StereoImageData2(frame_id=frame_id, collected_batch_num=collected_batch_num, left=left_image_data, right=right_image_data))
+                StereoImageData(frame_id=frame_id, collected_batch_num=collected_batch_num, left=left_image_data, right=right_image_data))
         return stereo_image_datas
 
-    def update_input_prompts(self, frame_id, left_input_prompts, right_input_prompts):
-        # update input prompts based on frame_id
-        # assumes a single point input prompt
-        # to update to multi-point: update to 2d array (e.g., np.array([[701, 83],[760, 378]]))
-        #   and replace self.predictor.predict() call point_labels argument to match dimension (np.array([1,1]))
-
-
-        left_input_prompts[0]["point_coords"] = np.array([[760, 254],[741, 443]])
-        right_input_prompts[0]["point_coords"] = np.array([[701, 83],[701, 83]])
-        return
-
-        run_frame_ids = [0, 29502, 45375, 49151, 69841, 69858, 85101, 100002]
-        num_runs = len(run_frame_ids)
-        run_right_input_prompts = [[830, 128],
-            [984, 224],
-                [1005, 240], #[1016, 617], [875, 566]],
-                    [875, 100],     #[871, 110],
-                        [728, 63],
-                            [869, 112],
-                                [727, 68]]
-        run_left_input_prompts = [[740, 112],
-            [682, 89],
-                [663, 86],
-                    [705, 162],     #[711, 175],
-                        [751, 231],
-                            [711, 173],
-                                [749, 233]]
-        
-        for i in range(num_runs-1):
-            if (frame_id >= run_frame_ids[i]) and (frame_id < run_frame_ids[i+1]):
-                # changes only first (and only) point_coord input
-                left_input_prompts[0]["point_coords"] = np.array([run_left_input_prompts[i]])
-                right_input_prompts[0]["point_coords"] = np.array([run_right_input_prompts[i]])
-
+    # Might still want these, batched prediction
 
     # def predict(self, image_datas: List[ImageData], frame_ids: List[str], input_prompts: List[dict]):
     #     image_pixel_num = image_datas[0].image.shape[0] * image_datas[0].image.shape[1]
@@ -205,7 +170,6 @@ class SAMBatchedPredictor:
     #             to_append_dict["point_labels"] = None
     #         batched_input.append(to_append_dict)
 
-
     # Doesn't work for some reason
     # def predict_stereo_batched(self, batch_data,
     #                    left_input_prompts: List[dict], right_input_prompts: List[dict]):
@@ -234,5 +198,5 @@ class SAMBatchedPredictor:
     #         batched_output = self.sam(batched_input, multimask_output=False)
     #         right_image_data = ImageData(batch_data["right_image"][i].cpu().detach().numpy(), batch_data["right_image_name"][i].item())
     #         collect_prediction_outputs(right_image_data, batched_output, right_input_prompts)
-    #         stereo_image_datas.append(StereoImageData2(frame_id=batch_data["frame_id"][i], left=left_image_data, right=right_image_data))
+    #         stereo_image_datas.append(StereoImageData(frame_id=batch_data["frame_id"][i], left=left_image_data, right=right_image_data))
     #     return stereo_image_datas

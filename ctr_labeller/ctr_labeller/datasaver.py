@@ -41,12 +41,12 @@ class DataSaver:
         self.right_input_prompts = None
 
         self.mask_path = os.path.join(save_root_path, "masks")
-        if not os.path.exists(self.mask_path): # Means no format path
+        if not os.path.exists(self.mask_path):
             os.mkdir(self.mask_path)
 
         self.image_and_masks_path = os.path.join(save_root_path, "image_and_masks")
         if self.save_image_appended_with_masks:
-            if not os.path.exists(self.image_and_masks_path): # Means no format path
+            if not os.path.exists(self.image_and_masks_path):
                 os.mkdir(self.image_and_masks_path)
 
         atexit.register(self.__destructor)
@@ -123,7 +123,6 @@ class DataSaver:
 
     def is_input_prompts_available(self):
         if self.input_prompt_json_name == "":
-            # print("DataSaver | User did not specify a input prompt json")
             return False
         prompts_file_path = os.path.join(self.save_root_path, self.input_prompt_json_name)
         if not os.path.isfile(prompts_file_path):

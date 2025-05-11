@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Tuple
 import tkinter as tk
 
 from ctr_labeller.config.utils import configure
@@ -41,8 +41,6 @@ class CTRLabellerApp(tk.Tk):
                 self.selectors.append(stereo_img_selector)
                 self.presenters.append(stereo_img_presenter)
 
-        # self.label = tk.Label(self, text="Hello, Tkinter!")
-        # self.label.pack()
         self.title("CTR SAM Labeller, press [n] to save and proceed with next set")
         self.img_idx = 0
 
@@ -59,14 +57,6 @@ class CTRLabellerApp(tk.Tk):
         self.__disable_all()
         self.bind("n", self.keypress_event)
 
-    # def set_stereo_image_datas(self, stereo_image_datas):
-    #     self.img_idx = 0
-    #     self.stereo_image_datas = stereo_image_datas
-        # self.is_done = self.__present_next()
-            
-    # Return value
-    # False: There is more iterations
-    # True: The iterations are done
     def __present_next(self):
         # This obtains max self.selector_num
         stereo_image_datas = self.stereo_image_queue.get_any_available_images_up_to(self.selector_num)
@@ -94,7 +84,6 @@ class CTRLabellerApp(tk.Tk):
         return
 
     def __save_current__present_next_selections(self):
-        # print("CTRLabellerApp | Saving selections")
         for selector in self.selectors:
             if not selector.is_active:
                 continue
@@ -163,12 +152,13 @@ class InputPromptGenerationApp(tk.Tk):
         self.protocol('WM_DELETE_WINDOW', self._exit)
         self.bind("n", self._exit_e)
 
+    def get_input_prompts(self):
+        return self.stereo_img_selector.left_image_selector.state.current_input_prompts, \
+                self.stereo_img_selector.right_image_selector.state.current_input_prompts
+
     def _exit_e(self, e):
         self._exit()
 
     def _exit(self):
         self.quit()
 
-    def get_input_prompts(self):
-        return self.stereo_img_selector.left_image_selector.state.current_input_prompts, \
-                self.stereo_img_selector.right_image_selector.state.current_input_prompts

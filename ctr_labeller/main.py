@@ -41,14 +41,11 @@ class SAMBatchedPredictorThread(threading.Thread):
         num = 0
         batch_len = len(self.dataloader)
         print("SAMBatchedPredictorThread | batch_len: ", batch_len)
-        # is_last_batch = False
         batch_idx = 0
         for batch in self.dataloader:
             if self.exit_flag:
                 print ("SAMBatchedPredictorThread | Exiting thread")
                 return
-            # if batch_idx >= batch_len - 1:
-            #     is_last_batch = True
             print("SAMBatchedPredictorThread | predicting frame_ids: {} ".format(batch["frame_id"].cpu().detach().numpy()))
             stereo_image_datas = self.sam_predictor.predict_stereo(batch, self.left_input_prompts, self.right_input_prompts)
             self.stereo_image_queue.wait_add_images(stereo_image_datas)
@@ -59,10 +56,7 @@ class SAMBatchedPredictorThread(threading.Thread):
         print ("SAMBatchedPredictorThread | ------ BATCH IS DONE ------")
 
 def main():
-    # Parse config
     config = parse_config(CTRLabellerConfig, yaml_arg='--config')
-
-    # Load data
     datasaver = DataSaver(config.data_path, 
                           config.input_prompt_json_name,
                           save_image_appended_with_masks=config.save_image_appended_with_masks)

@@ -9,11 +9,9 @@ class ImageSelectionPresenter(tk.Frame):
     NO_MASK_NAME = "No Mask"
     def __init__(self, parent_frame, state:ImageSelectorState):
         tk.Frame.__init__(self, master=parent_frame)
-        # Canvas Frame
         self.canvas = tk.Canvas(self)
         self.canvas.grid(row=0, column=0)
 
-        # Label Frame
         self.label_frame = tk.Frame(self)
         self.label_frame.grid(row=1, column=0, sticky="nsew")
         self.label_frame.grid_columnconfigure(0, weight=1)

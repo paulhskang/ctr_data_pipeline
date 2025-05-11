@@ -1,8 +1,7 @@
-import cv2
 import copy
+import numpy as np
 from dataclasses import dataclass
 from enum import Enum
-import numpy as np
 
 from ctr_labeller.types import ImageData
 from ctr_labeller.ui.types import ImageSelectorState, create_img_with_input_prompts
@@ -222,7 +221,6 @@ class ImageSelectorConfig:
 class ImageSelector:
     def __init__(self, config: ImageSelectorConfig, state: ImageSelectorState):
         self.state = state
-        # self.config = config
         self.widgets = []
         if config.save_img_check_button is not None:
             self.widgets.append(SaveWidget(config.save_img_check_button, config.is_select_var, self.state))
