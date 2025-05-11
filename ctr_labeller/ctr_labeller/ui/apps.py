@@ -41,6 +41,8 @@ class CTRLabellerApp(tk.Tk):
                 self.selectors.append(stereo_img_selector)
                 self.presenters.append(stereo_img_presenter)
 
+        # self.label = tk.Label(self, text="Hello, Tkinter!")
+        # self.label.pack()
         self.title("CTR SAM Labeller, press [n] to save and proceed with next set")
         self.img_idx = 0
 
@@ -91,7 +93,7 @@ class CTRLabellerApp(tk.Tk):
             selection_idx += 1
         return
 
-    def __save_selections(self):
+    def __save_current__present_next_selections(self):
         # print("CTRLabellerApp | Saving selections")
         for selector in self.selectors:
             if not selector.is_active:
@@ -102,7 +104,6 @@ class CTRLabellerApp(tk.Tk):
     def get_selector_current_context(selector):
         selector.left_image_selector.state.current_image_data.is_save_mask = selector.left_image_selector.state.is_select_var.get()
         selector.right_image_selector.state.current_image_data.is_save_mask = selector.right_image_selector.state.is_select_var.get()
-        # return selector.current_frame_id, selector.left_image_selector.state.current_image_data, selector.right_image_selector.state.current_image_data
         return selector.current_frame_id, selector.current_collected_batch_num, selector.left_image_selector.state.current_image_data, selector.right_image_selector.state.current_image_data
         
     
@@ -112,10 +113,8 @@ class CTRLabellerApp(tk.Tk):
             self.presenters[i].present_current_state()
 
     def keypress_event(self, input):
-        # print(type(input)) # What is tkinter giving here?
-        self.__save_selections() # Save the currently presented from __present_next()
+        self.__save_current__present_next_selections() 
         self.__disable_all()
-
         self.update()
         self.__present_next()
         print("CTRLabellerApp | Presenting next set of images")
@@ -125,9 +124,7 @@ class InputPromptGenerationApp(tk.Tk):
         tk.Tk.__init__(self, *args, **kwargs)
         self.stereo_image_dataset = stereo_image_dataset
         left_state = ImageSelectorState(selection_image_height_py)
-        # left_state.current_input_prompts = {}
         right_state = ImageSelectorState(selection_image_height_py)
-        # right_state.current_input_prompts = {}
         self.stereo_img_presenter = StereoImagePresenter(self, left_state, right_state)
         self.stereo_img_presenter.grid(row=0, column=0, padx=10, pady=10)
         self.stereo_img_selector = StereoImageSelector(

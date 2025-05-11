@@ -2,6 +2,7 @@
 import atexit
 import copy
 import cv2
+from datetime import datetime
 import json
 import numpy as np
 import os
@@ -23,9 +24,11 @@ def convert_dict_list_values_to_arrays(dictionary, exceptions: List):
         dictionary[key] = np.array(dictionary[key])
 
 class DataSaver:
-    def __init__(self, save_root_path, save_image_and_masks = False):
+    def __init__(self, save_root_path, input_prompt_json_name, save_image_appended_with_masks = False):
         self.save_root_path = save_root_path
-        self.save_image_and_masks = save_image_and_masks
+        self.input_prompt_json_name = input_prompt_json_name
+        print(self.input_prompt_json_name)
+        self.save_image_appended_with_masks = save_image_appended_with_masks
 
         self.reference_file_path = os.path.join(save_root_path, "reference.csv")
         if os.path.isfile(self.reference_file_path):
@@ -42,7 +45,7 @@ class DataSaver:
             os.mkdir(self.mask_path)
 
         self.image_and_masks_path = os.path.join(save_root_path, "image_and_masks")
-        if self.save_image_and_masks:
+        if self.save_image_appended_with_masks:
             if not os.path.exists(self.image_and_masks_path): # Means no format path
                 os.mkdir(self.image_and_masks_path)
 
@@ -74,7 +77,7 @@ class DataSaver:
         
         # Image and masks
         relative_image_and_mask_path_from_root = ""
-        if self.save_image_and_masks:
+        if self.save_image_appended_with_masks:
             # if os.path.exists(fullpath_image_and_mask): # Not working properly
             #     print("{} path exists! Overriding".format(fullpath_image_and_mask))
             try:
@@ -105,7 +108,7 @@ class DataSaver:
         self.reference_dict[frame_id]["right_mask_fail"] = not image_data_right.is_save_mask
         self.reference_dict[frame_id]["left_mask_path"] = left_mask_path
         self.reference_dict[frame_id]["right_mask_path"] = right_mask_path
-        if self.save_image_and_masks:
+        if self.save_image_appended_with_masks:
             self.reference_dict[frame_id]["left_image_and_mask_path"] = left_image_and_mask_path
             self.reference_dict[frame_id]["right_image_and_mask_path"] = right_image_and_mask_path
 
@@ -116,21 +119,26 @@ class DataSaver:
         df = pd.DataFrame.from_dict(self.reference_dict, orient='index')
         df.index.name = "frame_id"
         df.to_csv(self.reference_file_path)
-        print("DataSaver | Finished saving reference.csv")
+        print("DataSaver | Finished saving or updating [reference.csv]")
 
     def is_input_prompts_available(self):
-        try:
-            self.prompts_file_path = os.path.join(self.save_root_path, "input_prompts.json")
-            if os.path.isfile(self.prompts_file_path):
-                f = open(self.prompts_file_path)
-                data = json.load(f)
-                self.left_input_prompts = data["left_input_prompts"]
-                self.right_input_prompts = data["right_input_prompts"]
-                if (self.left_input_prompts["point_coords"] != [] or self.left_input_prompts["box"] is not None) \
-                    and (self.right_input_prompts["point_coords"] != [] or self.right_input_prompts["box"] is not None):
-                    return True
-        except:
-            print("No or invalid or failed to load input prompt file.")
+        if self.input_prompt_json_name == "":
+            # print("DataSaver | User did not specify a input prompt json")
+            return False
+        prompts_file_path = os.path.join(self.save_root_path, self.input_prompt_json_name)
+        if not os.path.isfile(prompts_file_path):
+            print("DataSaver | Failed to load input prompt file [{}].".format(self.input_prompt_json_name))
+            return False
+        
+        f = open(prompts_file_path)
+        data = json.load(f)
+        self.left_input_prompts = data["left_input_prompts"]
+        self.right_input_prompts = data["right_input_prompts"]
+        if (self.left_input_prompts["point_coords"] != [] or self.left_input_prompts["box"] is not None) \
+            and (self.right_input_prompts["point_coords"] != [] or self.right_input_prompts["box"] is not None):
+            return True
+        # else:
+        print("DataSaver | Input prompts from [{}] not in valid format".format(self.input_prompt_json_name))
         return False
 
     def get_input_prompts(self):
@@ -142,5 +150,10 @@ class DataSaver:
         left_right_input_prompts = {}
         left_right_input_prompts["right_input_prompts"] = right_input_prompts
         left_right_input_prompts["left_input_prompts"] = left_input_prompts
-        with open(self.prompts_file_path, 'w') as f:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        prompts_file_path = os.path.join(self.save_root_path,
+                                         "input_prompts_{}.json".format(timestamp))
+        with open(prompts_file_path, 'w') as f:
             json.dump(left_right_input_prompts, f, ensure_ascii=False, indent=2)
+        return prompts_file_path
+

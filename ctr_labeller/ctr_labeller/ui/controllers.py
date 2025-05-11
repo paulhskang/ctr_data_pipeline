@@ -174,7 +174,6 @@ class ClearBoundingBoxWidget():
                                                     self.state.current_input_prompts)
             self.state.trigger_presenter_function()
 
-
 class ClickZoomWidget():
     def __init__(self, state: ImageSelectorState):
         self.state = state

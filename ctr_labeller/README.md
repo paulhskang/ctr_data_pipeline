@@ -12,12 +12,7 @@ paste model here.
 For configuring yaml code taken from kaolin-wisp
 ```bash
 conda activate sam
-pip install docstring_parser hydra-zen tyro
-```
-
-Install pandas
-```bash
-pip install pandas
+pip install docstring_parser hydra-zen tyro pandas
 ```
 
 # Dataset and Reference csv file
@@ -74,9 +69,14 @@ One single reference csv file should hold all the relative paths to each stereoi
 | ... | ... | ... | ... |
 
 # Run
-To run program:
+To run program, with an input prompt generation app:
 ```bash
-python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True --create-input-prompts True
+python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True 
+```
+
+or if you have an input prompt json in the data folder, to load:
+```bash
+python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True --input-prompt-json-name input_prompt.json
 ```
 
 # Usage

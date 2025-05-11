@@ -6,8 +6,7 @@ app_config:
   frame_pady: 10
 
 batch_num: -1
-input_prompt_image_height: 1080
-debug_inputs: False
+input_prompt_app_image_height: 1080
 sort_based_on: "highest_score"
 max_size_to_add: 40
-save_image_and_masks: False
+save_image_appended_with_masks: False
