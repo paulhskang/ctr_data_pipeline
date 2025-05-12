@@ -55,14 +55,15 @@ class DataSaver:
     
     def __save_image_instance(self, image, image_name, image_data_path, prepend_img_str, prepend_folder):
        # image_data.path is full path
-        mask_folder_from_root = os.path.join(os.path.split(image_data_path)[0], prepend_folder)
+       # Will try to create masks folder one up because assumes images are in imgs folder
+        mask_folder_from_root = os.path.join(os.path.split(image_data_path)[0], prepend_folder) 
         if not os.path.isdir(mask_folder_from_root):
             os.makedirs(mask_folder_from_root)
 
         save_image_name = prepend_img_str + "{}".format(image_name)
         fullpath_image = os.path.join(mask_folder_from_root, save_image_name)
         cv2.imwrite(fullpath_image, image)
-        relative_image_path_from_save_folder = os.path.relpath(self.save_root_path, fullpath_image)
+        relative_image_path_from_save_folder = os.path.relpath(fullpath_image, self.save_root_path)
         return relative_image_path_from_save_folder
 
     def __save_current_mask(self, image_data: ImageData):

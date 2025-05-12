@@ -19,45 +19,34 @@ pip install docstring_parser hydra-zen tyro pandas
 
 Automatic download doesn't work for now.
 
-Masks are created in the same directory as the reference file. Structure for reference file and newly created masks/images by SAM:
+Masks are created in the same directory as the runs subdirectory. Structure for reference file and newly created masks/images by SAM:
 ```
 ├── some_folder_on_computer
 |   |── some_robot_configuration    # data for a set of tubes
 |       |- reference.csv            # reference file
 |       |- input_prompts.json       # created by this program
-|       |- imgs                     # main folder for collected image data
-|           |── run1                # different folders per run as data collection could be done over several days
-|               |- 0                # batch images to limit number of images per folder (makes moving folders easier)
-|                   |- filename1_cam0.jpg
-|                   |- filename1_cam1.jpg
-|                   |- ...
-|               |- 1
-|                   |- filename1001_cam0.jpg
-|                   |- filename1001_cam1.jpg
-|                   |- ...
-|               |- ...
-|           |── run2
-|               |- 10
-|                   |- filename10001_cam0.jpg
-|                   |- filename10001_cam1.jpg
-|                   |- ...
-|               |- 11
-|                   |- filename11001_cam0.jpg
-|                   |- filename11001_cam1.jpg
-|                   |- ...
-|               |- ...
-|           |── ...
-|       |- masks                    # created by this program
-|           |- 0
+|       |- run1                     # different folders per run as data collection could be done over several days
+|           |── imgs                # images
+|               |- filename1_cam0.jpg
+|               |- filename1_cam1.jpg
+|           |- masks                    # created by this program
 |               |- mask_filename1_cam0.jpg
 |               |- mask_filename1_cam1.jpg
 |               |- ...
-|           |- 1
-|               |- mask_filename1001_cam0.jpg
-|               |- mask_filename1001_cam1.jpg
+|           |- image_and_masks          # created by this program (not default)
 |               |- ...
-|           |- ...
-|       |- image_and_masks          # created by this program (not default)
+|       |── run2
+|           |── imgs
+|               |- filename10001_cam0.jpg
+|               |- filename10001_cam1.jpg
+|               |- ...
+|           |── masks
+|               |- mask_filename11001_cam0.jpg
+|               |- mask_filename11001_cam1.jpg
+|               |- ...
+|           |- image_and_masks          # created by this program (not default)
+|               |- ...
+|       |── run3 ...
 ```
 
 One single reference csv file should hold all the relative paths to each stereoimage pair with at least the following columns:
