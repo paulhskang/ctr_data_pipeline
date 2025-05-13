@@ -1,8 +1,6 @@
 import cv2
-import numpy as np
 import copy
 import tkinter as tk
-from typing import List
 from ctr_labeller.types import ImageData
 
 def create_img_with_input_prompts(img, current_input_prompts):

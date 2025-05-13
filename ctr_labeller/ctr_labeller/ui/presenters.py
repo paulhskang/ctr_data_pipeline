@@ -9,11 +9,9 @@ class ImageSelectionPresenter(tk.Frame):
     NO_MASK_NAME = "No Mask"
     def __init__(self, parent_frame, state:ImageSelectorState):
         tk.Frame.__init__(self, master=parent_frame)
-        # Canvas Frame
         self.canvas = tk.Canvas(self)
         self.canvas.grid(row=0, column=0)
 
-        # Label Frame
         self.label_frame = tk.Frame(self)
         self.label_frame.grid(row=1, column=0, sticky="nsew")
         self.label_frame.grid_columnconfigure(0, weight=1)
@@ -48,7 +46,8 @@ class ImageSelectionPresenter(tk.Frame):
         tk_image = ImageTk.PhotoImage(image=Image.fromarray(image))
         self.canvas.image = tk_image
         self.canvas.configure(width=self.image_y, height=self.image_x)
-        self.canvas.create_image(10, 10, anchor=tk.NW, image=tk_image)
+        # Fix for click event: Put image at 0, 0, TODO otherwise, need to set the same offset during the click event
+        self.canvas.create_image(0, 0, anchor=tk.NW, image=tk_image) 
         return image
     
     def set_image_label(self, text = None):

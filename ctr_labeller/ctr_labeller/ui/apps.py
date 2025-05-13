@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Tuple
 import tkinter as tk
 
 from ctr_labeller.config.utils import configure
@@ -57,14 +57,6 @@ class CTRLabellerApp(tk.Tk):
         self.__disable_all()
         self.bind("n", self.keypress_event)
 
-    # def set_stereo_image_datas(self, stereo_image_datas):
-    #     self.img_idx = 0
-    #     self.stereo_image_datas = stereo_image_datas
-        # self.is_done = self.__present_next()
-            
-    # Return value
-    # False: There is more iterations
-    # True: The iterations are done
     def __present_next(self):
         # This obtains max self.selector_num
         stereo_image_datas = self.stereo_image_queue.get_any_available_images_up_to(self.selector_num)
@@ -75,7 +67,6 @@ class CTRLabellerApp(tk.Tk):
                 continue
             self.selectors[selection_idx].set_context(
                 stereo_image_data.frame_id,
-                stereo_image_data.collected_batch_num,
                 stereo_image_data.left,
                 stereo_image_data.right,
                 ImageSelectionType.MASK_AND_PROMPT)
@@ -91,19 +82,17 @@ class CTRLabellerApp(tk.Tk):
             selection_idx += 1
         return
 
-    def __save_selections(self):
-        # print("CTRLabellerApp | Saving selections")
+    def __save_current__present_next_selections(self):
         for selector in self.selectors:
             if not selector.is_active:
                 continue
-            frame_id, collected_batch_num, image_left, image_right = CTRLabellerApp.get_selector_current_context(selector)
-            self.datasaver.save_current_stereo_masks(frame_id, collected_batch_num, image_left, image_right)
+            frame_id, image_left, image_right = CTRLabellerApp.get_selector_current_context(selector)
+            self.datasaver.save_current_stereo_masks(frame_id, image_left, image_right)
 
     def get_selector_current_context(selector):
         selector.left_image_selector.state.current_image_data.is_save_mask = selector.left_image_selector.state.is_select_var.get()
         selector.right_image_selector.state.current_image_data.is_save_mask = selector.right_image_selector.state.is_select_var.get()
-        # return selector.current_frame_id, selector.left_image_selector.state.current_image_data, selector.right_image_selector.state.current_image_data
-        return selector.current_frame_id, selector.current_collected_batch_num, selector.left_image_selector.state.current_image_data, selector.right_image_selector.state.current_image_data
+        return selector.current_frame_id, selector.left_image_selector.state.current_image_data, selector.right_image_selector.state.current_image_data
         
     
     def __disable_all(self):
@@ -112,10 +101,8 @@ class CTRLabellerApp(tk.Tk):
             self.presenters[i].present_current_state()
 
     def keypress_event(self, input):
-        # print(type(input)) # What is tkinter giving here?
-        self.__save_selections() # Save the currently presented from __present_next()
+        self.__save_current__present_next_selections() 
         self.__disable_all()
-
         self.update()
         self.__present_next()
         print("CTRLabellerApp | Presenting next set of images")
@@ -125,9 +112,7 @@ class InputPromptGenerationApp(tk.Tk):
         tk.Tk.__init__(self, *args, **kwargs)
         self.stereo_image_dataset = stereo_image_dataset
         left_state = ImageSelectorState(selection_image_height_py)
-        # left_state.current_input_prompts = {}
         right_state = ImageSelectorState(selection_image_height_py)
-        # right_state.current_input_prompts = {}
         self.stereo_img_presenter = StereoImagePresenter(self, left_state, right_state)
         self.stereo_img_presenter.grid(row=0, column=0, padx=10, pady=10)
         self.stereo_img_selector = StereoImageSelector(
@@ -161,10 +146,14 @@ class InputPromptGenerationApp(tk.Tk):
                                      frame["right_image_name"],
                                      frame["right_image_path"],
                                      frame["frame_id"])
-        self.stereo_img_selector.set_context(frame["frame_id"], frame["collected_batch_num"], left_image_data, right_image_data, ImageSelectionType.IMAGE)
+        self.stereo_img_selector.set_context(frame["frame_id"], left_image_data, right_image_data, ImageSelectionType.IMAGE)
         self.stereo_img_presenter.present_current_state()
         self.protocol('WM_DELETE_WINDOW', self._exit)
         self.bind("n", self._exit_e)
+
+    def get_input_prompts(self):
+        return self.stereo_img_selector.left_image_selector.state.current_input_prompts, \
+                self.stereo_img_selector.right_image_selector.state.current_input_prompts
 
     def _exit_e(self, e):
         self._exit()
@@ -172,6 +161,3 @@ class InputPromptGenerationApp(tk.Tk):
     def _exit(self):
         self.quit()
 
-    def get_input_prompts(self):
-        return self.stereo_img_selector.left_image_selector.state.current_input_prompts, \
-                self.stereo_img_selector.right_image_selector.state.current_input_prompts

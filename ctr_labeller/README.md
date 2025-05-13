@@ -12,71 +12,74 @@ paste model here.
 For configuring yaml code taken from kaolin-wisp
 ```bash
 conda activate sam
-pip install docstring_parser hydra-zen tyro
-```
-
-Install pandas
-```bash
-pip install pandas
+pip install docstring_parser hydra-zen tyro pandas
 ```
 
 # Dataset and Reference csv file
 
-Automatic download doesn't work for now.
-
-Masks are created in the same directory as the reference file. Structure for reference file and newly created masks/images by SAM:
+This program requires you to give the path to the folder with a reference.csv. Your reference csv can allow different image saving folder structures
+but requires that the images are saved under an "imgs" folder because the program will use the specific string to create a "masks" folder beside it. 
+It will then save masks with the same subfolder structure as the images.
+We suggest the following structure for the reference file and saving of images and masks:
 ```
 ├── some_folder_on_computer
 |   |── some_robot_configuration    # data for a set of tubes
 |       |- reference.csv            # reference file
 |       |- input_prompts.json       # created by this program
-|       |- imgs                     # main folder for collected image data
-|           |── run1                # different folders per run as data collection could be done over several days
-|               |- 0                # batch images to limit number of images per folder (makes moving folders easier)
-|                   |- filename1_cam0.jpg
-|                   |- filename1_cam1.jpg
-|                   |- ...
-|               |- 1
-|                   |- filename1001_cam0.jpg
-|                   |- filename1001_cam1.jpg
-|                   |- ...
+|       |- run1                     # different folders per run as data collection could be done over several days
+|           |── imgs                # images
+|               |-0 
+|               |    |- filename1_cam0.jpg
+|               |    |- filename1_cam1.jpg
+|               |    |- ...
+|               |-1
+|                    |- ...
+|           |- masks                    # created by this program
+|               |-0
+|               |    |- mask_filename1_cam0.jpg
+|               |    |- mask_filename1_cam1.jpg
+|               |    |- ...
+|               |-1
+|                    |- ...
+|           |- image_and_masks          # created by this program (not default)
 |               |- ...
-|           |── run2
-|               |- 10
-|                   |- filename10001_cam0.jpg
-|                   |- filename10001_cam1.jpg
-|                   |- ...
-|               |- 11
-|                   |- filename11001_cam0.jpg
-|                   |- filename11001_cam1.jpg
-|                   |- ...
+|       |── run2
+|           |── imgs                # images
+|               |-0 
+|               |    |- filename10001_cam0.jpg
+|               |    |- filename10001_cam1.jpg
+|               |    |- ...
+|               |-1
+|                    |- ...
+|           |- masks                    # created by this program
+|               |-0
+|               |    |- mask_filename10001_cam0.jpg
+|               |    |- mask_filename10001_cam1.jpg
+|               |    |- ...
+|               |-1
+|                    |- ...
+|           |- image_and_masks          # created by this program (not default)
 |               |- ...
-|           |── ...
-|       |- masks                    # created by this program
-|           |- 0
-|               |- mask_filename1_cam0.jpg
-|               |- mask_filename1_cam1.jpg
-|               |- ...
-|           |- 1
-|               |- mask_filename1001_cam0.jpg
-|               |- mask_filename1001_cam1.jpg
-|               |- ...
-|           |- ...
-|       |- image_and_masks          # created by this program (not default)
+|       |── run3 ...
 ```
 
 One single reference csv file should hold all the relative paths to each stereoimage pair with at least the following columns:
 
 | frame_id      | batch_num | left_image_path | right_image_path |
 | ----------- | ----------- | ----------- | ----------- | ----------- |
-| 1 | 0 | /imgs/run1/0/filename1_cam0.jpg | /imgs/run1/0/filename1_cam1.jpg |
-| 2 | 0 | /imgs/run1/0/filename2_cam0.jpg | /imgs/run1/0/filename2_cam1.jpg |
+| 1 | 0 | /run1/imgs/0/filename1_cam0.jpg | /run1/imgs/0/filename1_cam1.jpg |
+| 2 | 0 | /run1/imgs/0/filename2_cam0.jpg | /run1/imgs/0/filename2_cam1.jpg |
 | ... | ... | ... | ... |
 
 # Run
-To run program:
+To run program, with an input prompt generation app:
 ```bash
-python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True --create-input-prompts True
+python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True 
+```
+
+or if you have an input prompt json in the data folder, to load:
+```bash
+python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True --input-prompt-json-name input_prompts.json
 ```
 
 # Usage

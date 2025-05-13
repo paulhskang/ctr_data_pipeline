@@ -1,8 +1,7 @@
-import cv2
 import copy
+import numpy as np
 from dataclasses import dataclass
 from enum import Enum
-import numpy as np
 
 from ctr_labeller.types import ImageData
 from ctr_labeller.ui.types import ImageSelectorState, create_img_with_input_prompts
@@ -174,7 +173,6 @@ class ClearBoundingBoxWidget():
                                                     self.state.current_input_prompts)
             self.state.trigger_presenter_function()
 
-
 class ClickZoomWidget():
     def __init__(self, state: ImageSelectorState):
         self.state = state
@@ -223,7 +221,6 @@ class ImageSelectorConfig:
 class ImageSelector:
     def __init__(self, config: ImageSelectorConfig, state: ImageSelectorState):
         self.state = state
-        # self.config = config
         self.widgets = []
         if config.save_img_check_button is not None:
             self.widgets.append(SaveWidget(config.save_img_check_button, config.is_select_var, self.state))
@@ -303,20 +300,17 @@ class StereoImageSelector:
         self.left_image_selector = left_image_selector
         self.right_image_selector = right_image_selector
         self.current_frame_id = -1
-        self.current_collected_batch_num = -1
         self.is_active = False
         self.disable_context()
 
-    def set_context(self, frame_id, collected_batch_num, left_img_data, right_img_data, selection: ImageSelectionType):
+    def set_context(self, frame_id, left_img_data, right_img_data, selection: ImageSelectionType):
         self.current_frame_id = frame_id
-        self.current_collected_batch_num = collected_batch_num
         self.left_image_selector.set_context(left_img_data, selection)
         self.right_image_selector.set_context(right_img_data, selection)
         self.is_active = True
 
     def disable_context(self):
         self.current_frame_id = -1
-        self.current_collected_batch_num = -1
         self.left_image_selector.disable_context()
         self.right_image_selector.disable_context()
         self.is_active = False
