@@ -53,21 +53,35 @@ class DataSaver:
         right_mask_fail = self.reference_dict[frame_id]["right_mask_fail"]
         return (is_processed and not left_mask_fail and not right_mask_fail)
     
+    def __find_images_folder(self, full_image_data_path):
+        is_image_folder_found = False
+        image_folder_from_root = full_image_data_path
+        while not is_image_folder_found:
+            split = os.path.split(image_folder_from_root)
+            if split[1] == "imgs":
+                is_image_folder_found = True
+                break
+            # else
+            image_folder_from_root = split[0]
+        return image_folder_from_root
+
+    def __get_relative_folders_in_between(self, images_folder, full_image_data_path):
+        rel_path = os.path.relpath(full_image_data_path, images_folder)
+        return os.path.split(rel_path)[0]
+
     def __save_image_instance(self, image, image_name, image_data_path, prepend_img_str, prepend_folder):
        # image_data.path is full path
        # Will try to create masks folder one up because assumes images are in imgs folder
-        up_one_folder = os.path.dirname(image_data_path)
-        split = os.path.split(up_one_folder)
-        images_folder_from_root = split[0]
-        batch_num = split[1]
+        images_folder_from_root = self.__find_images_folder(image_data_path)
+        rel_path_in_between = self.__get_relative_folders_in_between(images_folder_from_root, image_data_path)
         up_one_images_folder_from_root = os.path.dirname(images_folder_from_root)
 
-        prepend_folder_with_batch_num_from_root = os.path.join(up_one_images_folder_from_root, prepend_folder, batch_num)
-        if not os.path.isdir(prepend_folder_with_batch_num_from_root):
-            os.makedirs(prepend_folder_with_batch_num_from_root)
+        prepend_folder_with_rel_path_in_between_from_root = os.path.join(up_one_images_folder_from_root, prepend_folder, rel_path_in_between)
+        if not os.path.isdir(prepend_folder_with_rel_path_in_between_from_root):
+            os.makedirs(prepend_folder_with_rel_path_in_between_from_root)
 
         save_image_name = prepend_img_str + "{}".format(image_name)
-        fullpath_image = os.path.join(prepend_folder_with_batch_num_from_root, save_image_name)
+        fullpath_image = os.path.join(prepend_folder_with_rel_path_in_between_from_root, save_image_name)
         cv2.imwrite(fullpath_image, image)
         relative_image_path_from_save_folder = os.path.relpath(fullpath_image, self.save_root_path)
         return relative_image_path_from_save_folder
