@@ -27,23 +27,36 @@ Masks are created in the same directory as the runs subdirectory. Structure for 
 |       |- input_prompts.json       # created by this program
 |       |- run1                     # different folders per run as data collection could be done over several days
 |           |── imgs                # images
-|               |- filename1_cam0.jpg
-|               |- filename1_cam1.jpg
+|               |-0 
+|               |    |- filename1_cam0.jpg
+|               |    |- filename1_cam1.jpg
+|               |    |- ...
+|               |-1
+|                    |- ...
 |           |- masks                    # created by this program
-|               |- mask_filename1_cam0.jpg
-|               |- mask_filename1_cam1.jpg
-|               |- ...
+|               |-0
+|               |    |- mask_filename1_cam0.jpg
+|               |    |- mask_filename1_cam1.jpg
+|               |    |- ...
+|               |-1
+|                    |- ...
 |           |- image_and_masks          # created by this program (not default)
 |               |- ...
 |       |── run2
-|           |── imgs
-|               |- filename10001_cam0.jpg
-|               |- filename10001_cam1.jpg
-|               |- ...
-|           |── masks
-|               |- mask_filename11001_cam0.jpg
-|               |- mask_filename11001_cam1.jpg
-|               |- ...
+|           |── imgs                # images
+|               |-0 
+|               |    |- filename10001_cam0.jpg
+|               |    |- filename10001_cam1.jpg
+|               |    |- ...
+|               |-1
+|                    |- ...
+|           |- masks                    # created by this program
+|               |-0
+|               |    |- mask_filename10001_cam0.jpg
+|               |    |- mask_filename10001_cam1.jpg
+|               |    |- ...
+|               |-1
+|                    |- ...
 |           |- image_and_masks          # created by this program (not default)
 |               |- ...
 |       |── run3 ...
@@ -53,8 +66,8 @@ One single reference csv file should hold all the relative paths to each stereoi
 
 | frame_id      | batch_num | left_image_path | right_image_path |
 | ----------- | ----------- | ----------- | ----------- | ----------- |
-| 1 | 0 | /imgs/run1/0/filename1_cam0.jpg | /imgs/run1/0/filename1_cam1.jpg |
-| 2 | 0 | /imgs/run1/0/filename2_cam0.jpg | /imgs/run1/0/filename2_cam1.jpg |
+| 1 | 0 | /run1/imgs/0/filename1_cam0.jpg | /run1/imgs/0/filename1_cam1.jpg |
+| 2 | 0 | /run1/imgs/0/filename2_cam0.jpg | /run1/imgs/0/filename2_cam1.jpg |
 | ... | ... | ... | ... |
 
 # Run
