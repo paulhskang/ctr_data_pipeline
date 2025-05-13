@@ -17,9 +17,10 @@ pip install docstring_parser hydra-zen tyro pandas
 
 # Dataset and Reference csv file
 
-Automatic download doesn't work for now.
-
-Masks are created in the same directory as the runs subdirectory. Structure for reference file and newly created masks/images by SAM:
+This program requires you to give the path to the folder with a reference.csv. Your reference csv can allow different image saving folder structures
+but requires that the images are saved under an "imgs" folder because the program will use the specific string to create a "masks" folder beside it. 
+It will then save masks with the same subfolder structure as the images.
+We suggest the following structure for the reference file and saving of images and masks:
 ```
 ├── some_folder_on_computer
 |   |── some_robot_configuration    # data for a set of tubes
