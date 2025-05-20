@@ -81,29 +81,21 @@ or if you have an input prompt json in the data folder, to load:
 ```bash
 python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True --input-prompt-json-name input_prompts.json
 ```
-
-# Usage
-Refer to [reference doc]
-
-# Authors
-Authors are listed in alphabetic order.
-
 # License
 BSD 3-Clause License
 
 # BibTeX
 If you want to reference this project, you can use the following citation:
-
-
-# TODO:
-- update prompts online with mask generation midway -- but background batching?
-- should work without image batches in paths?
-- pyhton recon? all embeded into gui
-- usage doc
-- clean up code
-
-desired workflow:
-- more integrated workflow? e.g., all in python with minimal work or run matlab in python
-    - automated reconstruction: calibration of xy-plane with qr code on the trocar face
-- flexibility: allow use of ui or offline pipelines
-    - ours: offline processing then verify images (and note bad masks/reconstructions) then UI troubleshooting (fix masks or reconstructions by new input prompts)
+```bibtex
+    @INPROCEEDINGS{kang_ismr_2025,
+      author={Kang, Paul H. and Gondokaryono, Radian and Roshanfar, Majid and Nguyen, Robert H. and Looi, Thomas and Drake, James M. and Podolsky, Dale},
+      booktitle={2025 International Symposium on Medical Robotics (ISMR)}, 
+      title={Learning Inverse Kinematics Multiplicity of Concentric Tube Robots Using Invertible Neural Networks}, 
+      year={2025},
+      volume={},
+      number={},
+      pages={1-7},
+      keywords={},
+      doi={}
+    }
+```
