@@ -26,6 +26,7 @@ We suggest the following structure for the reference file and saving of images a
 |   |── some_robot_configuration    # data for a set of tubes
 |       |- reference.csv            # reference file
 |       |- input_prompts.json       # created by this program
+|       |- sam_vit_h_4b8939.pth     # SAM
 |       |- run1                     # different folders per run as data collection could be done over several days
 |           |── imgs                # images
 |               |-0 
