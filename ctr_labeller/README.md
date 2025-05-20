@@ -65,11 +65,11 @@ We suggest the following structure for the reference file and saving of images a
 
 One single reference csv file should hold all the relative paths to each stereoimage pair with at least the following columns:
 
-| frame_id | batch_num | left_image_path | right_image_path |
-| ----------- | ----------- | ----------- | ----------- |
-| 1 | 0 | /run1/imgs/0/filename1_cam0.jpg | /run1/imgs/0/filename1_cam1.jpg |
-| 2 | 0 | /run1/imgs/0/filename2_cam0.jpg | /run1/imgs/0/filename2_cam1.jpg |
-| ... | ... | ... | ... |
+| frame_id | left_image_path | right_image_path |
+| ----------- | ----------- | ----------- |
+| 1 | /run1/imgs/0/filename1_cam0.jpg | /run1/imgs/0/filename1_cam1.jpg |
+| 2 | /run1/imgs/0/filename2_cam0.jpg | /run1/imgs/0/filename2_cam1.jpg |
+| ... | ... | ... |
 
 # Run
 To run program, with an input prompt generation app:
