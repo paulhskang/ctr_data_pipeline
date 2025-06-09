@@ -1,7 +1,7 @@
 from typing import Tuple
 import tkinter as tk
 
-from ctr_labeller.config.utils import configure
+# from ctr_labeller.config.utils import configure
 from ctr_labeller.datasaver import DataSaver
 from ctr_labeller.types import StereoImageDataQueue, ImageData
 from ctr_labeller.predictor import SAMBatchedPredictor
@@ -10,7 +10,7 @@ from ctr_labeller.ui.controllers import StereoImageSelector, ImageSelectorConfig
 from ctr_labeller.ui.presenters import StereoImagePresenter, OrganizedButtonGenerator
 from ctr_labeller.ui.types import ImageSelectorState
 
-@configure
+# @configure
 class CTRLabellerAppConfig:
     zoom_factor: float = 2.0
     selection_image_height_py: int = 1200
