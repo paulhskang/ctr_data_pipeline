@@ -40,11 +40,11 @@ Options:
 ![image](docs/images/input_prompt.png)
 ![image](docs/images/input_prompt_mask.png)
 If there is no input prompt json file or if the file path is invalid, the app will require input prompts to be created. The first of the remaining stereoimages in the reference.csv file will be shown as an aid to generate prompts, and these input prompts will then be used to generate masks for all remaining stereoimages. The five buttons under each image and their uses are as follows:
-- Setting Keypoint/Bounding Box: There are two types of input prompts: keypoints and bounding boxes. Toggling this button will trigger the different modes. Keypoints are specified by left-clicking on the image. A bounding box is specified by left-clicking for the top-right corner and right-clicking for the bottom-right corner.
-- Generate Mask: Generates a mask based on the input prompts specified. Note this mask is not saved, but for verifying the input prompts.
-- Toggle Mask: Toggles the generated mask on and off.
-- Delete Last Keypoint: Deletes the last keypoint. 
-- Clear Bounding Box: Clears the bounding box.
+- **Setting Keypoint/Bounding Box**: There are two types of input prompts: keypoints and bounding boxes. Toggling this button will trigger the different modes. Keypoints are specified by left-clicking on the image. A bounding box is specified by left-clicking for the top-right corner and right-clicking for the bottom-right corner.
+- **Generate Mask**: Generates a mask based on the input prompts specified. Note this mask is not saved, but for verifying the input prompts.
+- **Toggle Mask**: Toggles the generated mask on and off.
+- **Delete Last Keypoint**: Deletes the last keypoint. 
+- **Clear Bounding Box**: Clears the bounding box.
 
 Specifying or deleting a keypoint or bounding box resets the generated mask. Press 'n' to save the input prompts.
 ## Mask Generation
