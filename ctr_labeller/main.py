@@ -2,7 +2,6 @@ import pandas as pd
 import torch
 import threading
 
-# from ctr_labeller.config.utils import parse_config, configure
 from ctr_labeller.arg_parser import arg_parser
 from ctr_labeller.dataset import StereoDataSet
 from ctr_labeller.datasaver import DataSaver
@@ -11,18 +10,6 @@ from ctr_labeller.ui.apps import CTRLabellerApp, CTRLabellerAppConfig, InputProm
 from ctr_labeller.ui.controllers import ImageSelectorConfig, ImageSelector, StereoImageSelector, \
                                         ImageSelectorState, ImageSelectionType
 from ctr_labeller.types import StereoImageDataQueue
-
-# @configure
-# class CTRLabellerConfig:
-#     data_path: str
-#     app_config: CTRLabellerAppConfig
-#     use_gui: bool = True
-#     input_prompt_json_name: str = ""
-#     input_prompt_app_image_height: int = 1080
-#     batch_num: int = -1
-#     save_image_appended_with_masks: bool = True
-#     sort_based_on: str = "None"
-#     max_size_to_add: int = 40 # Depends on how much RAM on CPU to load images
 
 class SAMBatchedPredictorThread(threading.Thread):
     def __init__(self, sam_predictor: SAMBatchedPredictor, stereo_image_queue, dataloader, 
