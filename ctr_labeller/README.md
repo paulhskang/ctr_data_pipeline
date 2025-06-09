@@ -31,7 +31,9 @@ Options:
 --data-path ARG
     Directory containing reference.csv file
 --use-gui ARG
-    Flag to determine if GUI used or not. If True, user actively specifies which masks to save based on the GUI. If False, all masks will be processed and saved automatically.
+    Flag to determine if GUI used or not.
+    If True, user actively specifies which masks to save based on the GUI.
+    If False, all masks will be processed and saved automatically.
 --input-prompt-json-name ARG
     Name of input prompt file
 ```
