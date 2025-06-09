@@ -2,7 +2,8 @@ import pandas as pd
 import torch
 import threading
 
-from ctr_labeller.config.utils import parse_config, configure
+# from ctr_labeller.config.utils import parse_config, configure
+from ctr_labeller.arg_parser import arg_parser
 from ctr_labeller.dataset import StereoDataSet
 from ctr_labeller.datasaver import DataSaver
 from ctr_labeller.predictor import SAMBatchedPredictor
@@ -11,17 +12,17 @@ from ctr_labeller.ui.controllers import ImageSelectorConfig, ImageSelector, Ster
                                         ImageSelectorState, ImageSelectionType
 from ctr_labeller.types import StereoImageDataQueue
 
-@configure
-class CTRLabellerConfig:
-    data_path: str
-    app_config: CTRLabellerAppConfig
-    use_gui: bool = True
-    input_prompt_json_name: str = ""
-    input_prompt_app_image_height: int = 1080
-    batch_num: int = -1
-    save_image_appended_with_masks: bool = True
-    sort_based_on: str = "None"
-    max_size_to_add: int = 40 # Depends on how much RAM on CPU to load images
+# @configure
+# class CTRLabellerConfig:
+#     data_path: str
+#     app_config: CTRLabellerAppConfig
+#     use_gui: bool = True
+#     input_prompt_json_name: str = ""
+#     input_prompt_app_image_height: int = 1080
+#     batch_num: int = -1
+#     save_image_appended_with_masks: bool = True
+#     sort_based_on: str = "None"
+#     max_size_to_add: int = 40 # Depends on how much RAM on CPU to load images
 
 class SAMBatchedPredictorThread(threading.Thread):
     def __init__(self, sam_predictor: SAMBatchedPredictor, stereo_image_queue, dataloader, 
@@ -56,7 +57,10 @@ class SAMBatchedPredictorThread(threading.Thread):
         print ("SAMBatchedPredictorThread | ------ BATCH IS DONE ------")
 
 def main():
-    config = parse_config(CTRLabellerConfig, yaml_arg='--config')
+    # Parse arguments
+    config = arg_parser()
+    app_config = CTRLabellerAppConfig()
+
     datasaver = DataSaver(config.data_path, 
                           config.input_prompt_json_name,
                           save_image_appended_with_masks=config.save_image_appended_with_masks)
@@ -87,7 +91,7 @@ def main():
     # print("Right input prompts: ", right_input_prompts)
 
     # SAM Create Masks
-    grid_num = config.app_config.selection_grid_size[0] * config.app_config.selection_grid_size[1]
+    grid_num = app_config.selection_grid_size[0] * app_config.selection_grid_size[1]
     loader = torch.utils.data.DataLoader(stereo_image_dataset, batch_size=grid_num,
                                          pin_memory=True, num_workers=4, shuffle=False)
     stereo_image_queue = StereoImageDataQueue(max_size_to_add=config.max_size_to_add)
@@ -98,13 +102,13 @@ def main():
     try:
         if config.use_gui:
             # Labeller App
-            app = CTRLabellerApp(config.app_config, stereo_image_dataset.datasaver, stereo_image_queue)
+            app = CTRLabellerApp(app_config, stereo_image_dataset.datasaver, stereo_image_queue)
             app.start()
             app.mainloop()
         else:
             # on main thread, save masks as they are segmented
-            left_state = ImageSelectorState(config.app_config.selection_image_height_py, config.app_config.zoom_factor)
-            right_state = ImageSelectorState(config.app_config.selection_image_height_py, config.app_config.zoom_factor)
+            left_state = ImageSelectorState(app_config.selection_image_height_py, app_config.zoom_factor)
+            right_state = ImageSelectorState(app_config.selection_image_height_py, app_config.zoom_factor)
             selector = StereoImageSelector(
                 ImageSelector(ImageSelectorConfig(), left_state),
                 ImageSelector(ImageSelectorConfig(), right_state)

@@ -14,28 +14,35 @@ pip install docstring_parser hydra-zen tyro pandas
 # Usage
 To run program, with an input prompt generation app:
 ```bash
-python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True
+python main.py --data-path /path/to/reference/file/folder --use-gui True
 ```
 or if you have an input prompt json in the data folder, to load:
 ```bash
-python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True --input-prompt-json-name input_prompts.json
+python main.py --data-path /path/to/reference/file/folder --use-gui True --input-prompt-json-name input_prompts.json
 ```
 ## Command Line Flags
 ```
-Usage: python main.py [options]
+usage: main.py [options]
 
-Options:
-
---config ARG
-    Path to config.yaml file
---data-path ARG
-    Directory containing reference.csv file
---use-gui ARG
-    Flag to determine if GUI used or not.
-    If True, user actively specifies which masks to save based on the GUI.
-    If False, all masks will be processed and saved automatically.
---input-prompt-json-name ARG
-    Name of input prompt file
+options:
+  -h, --help            
+        show this help message and exit
+  --data-path ARG
+        Directory containing reference file
+  --use-gui ARG     
+        User actively specifies which masks to save with the GUI
+  --input-prompt-json-name ARG
+        Name of input prompt file
+  --input-prompt-app-image-height ARG
+        Input prompt app image height
+  --batch-num ARG
+        Process this batch number only
+  --save-image-appended-with-masks ARG
+        Save images with mask overlays
+  --sort-based-on ARG
+        Criteria on how masks are selected
+  --max-size-to-add ARG
+        Number of images to load at one time for processing
 ```
 # GUI Program
 ## Input Prompt Generation
@@ -51,7 +58,7 @@ If there is no input prompt json file or if the file path is invalid, the app wi
 Specifying or deleting a keypoint or bounding box resets the generated mask. Press 'n' to save the input prompts.
 ## Mask Generation
 ![image](docs/images/main_gui.png)
-The mask generation screen is shown if the use-gui flag is enabled. Press 'n' to move to the next set of processed stereo masks (overlaid in blue). If 'Save Mask?' is checked, the mask will be saved.
+The mask generation screen is shown if the use-gui flag is enabled. If enabled, user actively specifies which masks to save based on the GUI. Press 'n' to move to the next set of processed stereo masks (overlaid in blue). If 'Save Mask?' is checked, the mask will be saved. If flag not enabled, all masks will be processed and saved automatically.
 
 # Dataset and Reference csv file
 This program requires you to give the path to the folder with a reference.csv. Your reference csv can allow different image saving folder structures
