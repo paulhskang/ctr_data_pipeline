@@ -1,6 +1,4 @@
-
 # Install
-
 Install SAM,
 https://github.com/facebookresearch/segment-anything
 using their installation instructions with CONDA, and CUDA. Make sure to have a GPU with sufficient memory.
@@ -8,15 +6,52 @@ using their installation instructions with CONDA, and CUDA. Make sure to have a 
 Download the model by putting in your browser: `https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth`, then copy
 paste model here. 
 
-
 For configuring yaml code taken from kaolin-wisp
 ```bash
 conda activate sam
 pip install docstring_parser hydra-zen tyro pandas
 ```
+# Usage
+To run program, with an input prompt generation app:
+```bash
+python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True
+```
+or if you have an input prompt json in the data folder, to load:
+```bash
+python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True --input-prompt-json-name input_prompts.json
+```
+## Command Line Flags
+```
+Usage: python main.py [options]
+
+Options:
+
+--config ARG
+    Path to config.yaml file
+--data-path ARG
+    Directory containing reference.csv file
+--use-gui ARG
+    Flag to determine if GUI used or not. If True, user actively specifies which masks to save based on the GUI. If False, all masks will be processed and saved automatically.
+--input-prompt-json-name ARG
+    Name of input prompt file
+```
+# GUI Program
+## Input Prompt Generation
+![image](docs/images/input_prompt.png)
+![image](docs/images/input_prompt_mask.png)
+If there is no input prompt json file or if the file path is invalid, the app will require input prompts to be created. The first of the remaining stereoimages in the reference.csv file will be shown as an aid to generate prompts, and these input prompts will then be used to generate masks for all remaining stereoimages. The five buttons under each image and their uses are as follows:
+- Setting Keypoint/Bounding Box: There are two types of input prompts: keypoints and bounding boxes. Toggling this button will trigger the different modes. Keypoints are specified by left-clicking on the image. A bounding box is specified by left-clicking for the top-right corner and right-clicking for the bottom-right corner.
+- Generate Mask: Generates a mask based on the input prompts specified. Note this mask is not saved, but for verifying the input prompts.
+- Toggle Mask: Toggles the generated mask on and off.
+- Delete Last Keypoint: Deletes the last keypoint. 
+- Clear Bounding Box: Clears the bounding box.
+
+Specifying or deleting a keypoint or bounding box resets the generated mask. Press 'n' to save the input prompts.
+## Mask Generation
+![image](docs/images/main_gui.png)
+The mask generation screen is shown if the use-gui flag is enabled. Press 'n' to move to the next set of processed stereo masks (overlaid in blue). If 'Save Mask?' is checked, the mask will be saved.
 
 # Dataset and Reference csv file
-
 This program requires you to give the path to the folder with a reference.csv. Your reference csv can allow different image saving folder structures
 but requires that the images are saved under an "imgs" folder because the program will use the specific string to create a "masks" folder beside it. 
 It will then save masks with the same subfolder structure as the images.
@@ -71,19 +106,6 @@ One single reference csv file should hold all the relative paths to each stereoi
 | 1 | /run1/imgs/0/filename1_cam0.jpg | /run1/imgs/0/filename1_cam1.jpg |
 | 2 | /run1/imgs/0/filename2_cam0.jpg | /run1/imgs/0/filename2_cam1.jpg |
 | ... | ... | ... |
-
-# Run
-To run program, with an input prompt generation app:
-```bash
-python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True 
-```
-
-or if you have an input prompt json in the data folder, to load:
-```bash
-python main.py --config config/config.yaml --data-path /path/to/reference/file/folder --use-gui True --input-prompt-json-name input_prompts.json
-```
-# License
-BSD 3-Clause License
 
 # BibTeX
 If you want to reference this project, you can use the following citation:
