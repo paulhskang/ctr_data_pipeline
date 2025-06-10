@@ -6,10 +6,10 @@ using their installation instructions with CONDA, and CUDA. Make sure to have a 
 Download the model by putting in your browser: `https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth`, then copy
 paste model here. 
 
-For configuring yaml code taken from kaolin-wisp
+Install dependencies:
 ```bash
 conda activate sam
-pip install docstring_parser hydra-zen tyro pandas
+pip install opencv-python matplotlib pandas
 ```
 # Usage
 To run program, with an input prompt generation app:
@@ -17,7 +17,7 @@ To run program, with an input prompt generation app:
 python main.py --data-path /path/to/reference/file/folder --use-gui True
 ```
 or if you have an input prompt json in the data folder, to load:
-```bash
+```bash 
 python main.py --data-path /path/to/reference/file/folder --use-gui True --input-prompt-json-name input_prompts.json
 ```
 ## Command Line Flags
@@ -25,11 +25,11 @@ python main.py --data-path /path/to/reference/file/folder --use-gui True --input
 usage: main.py [options]
 
 options:
-  -h, --help            
+  -h, --help
         show this help message and exit
   --data-path ARG
         Directory containing reference file
-  --use-gui ARG     
+  --use-gui ARG
         User actively specifies which masks to save with the GUI
   --input-prompt-json-name ARG
         Name of input prompt file
