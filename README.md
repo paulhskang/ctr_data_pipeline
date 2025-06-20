@@ -14,10 +14,12 @@ pip install opencv-python matplotlib pandas
 # Usage
 To run program, with an input prompt generation app:
 ```bash
+cd ctr_labeller
 python main.py --data-path /path/to/reference/file/folder --use-gui True
 ```
 or if you have an input prompt json in the data folder, to load:
 ```bash 
+cd ctr_labeller
 python main.py --data-path /path/to/reference/file/folder --use-gui True --input-prompt-json-name input_prompts.json
 ```
 ## Command Line Flags
