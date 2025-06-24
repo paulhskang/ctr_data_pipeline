@@ -3,8 +3,7 @@ Install SAM,
 https://github.com/facebookresearch/segment-anything
 using their installation instructions with CONDA, and CUDA. Make sure to have a GPU with sufficient memory.
 
-Download the model by putting in your browser: `https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth`, then copy
-paste model here. 
+Download the model by putting in your browser: `https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth`, then copy and paste the model in the same folder as main.py. 
 
 Install dependencies:
 ```bash
@@ -72,20 +71,19 @@ We suggest the following structure for the reference file and saving of images a
 |   |── some_robot_configuration    # data for a set of tubes
 |       |- reference.csv            # reference file
 |       |- input_prompts.json       # created by this program
-|       |- sam_vit_h_4b8939.pth     # SAM
 |       |- run1                     # different folders per run as data collection could be done over several days
 |           |── imgs                # images
 |               |-0 
-|               |    |- filename1_cam0.jpg
-|               |    |- filename1_cam1.jpg
-|               |    |- ...
+|                    |- filename1_cam0.jpg
+|                    |- filename1_cam1.jpg
+|                    |- ...
 |               |-1
 |                    |- ...
 |           |- masks                    # created by this program
 |               |-0
-|               |    |- mask_filename1_cam0.jpg
-|               |    |- mask_filename1_cam1.jpg
-|               |    |- ...
+|                    |- mask_filename1_cam0.jpg
+|                    |- mask_filename1_cam1.jpg
+|                    |- ...
 |               |-1
 |                    |- ...
 |           |- image_and_masks          # created by this program (not default)
@@ -93,16 +91,16 @@ We suggest the following structure for the reference file and saving of images a
 |       |── run2
 |           |── imgs                # images
 |               |-0 
-|               |    |- filename10001_cam0.jpg
-|               |    |- filename10001_cam1.jpg
-|               |    |- ...
+|                    |- filename10001_cam0.jpg
+|                    |- filename10001_cam1.jpg
+|                    |- ...
 |               |-1
 |                    |- ...
 |           |- masks                    # created by this program
 |               |-0
-|               |    |- mask_filename10001_cam0.jpg
-|               |    |- mask_filename10001_cam1.jpg
-|               |    |- ...
+|                    |- mask_filename10001_cam0.jpg
+|                    |- mask_filename10001_cam1.jpg
+|                    |- ...
 |               |-1
 |                    |- ...
 |           |- image_and_masks          # created by this program (not default)
@@ -114,8 +112,8 @@ One single reference csv file should hold all the relative paths to each stereoi
 
 | frame_id | left_image_path | right_image_path |
 | ----------- | ----------- | ----------- |
-| 1 | /run1/imgs/0/filename1_cam0.jpg | /run1/imgs/0/filename1_cam1.jpg |
-| 2 | /run1/imgs/0/filename2_cam0.jpg | /run1/imgs/0/filename2_cam1.jpg |
+| 1 | run1/imgs/0/filename1_cam0.jpg | run1/imgs/0/filename1_cam1.jpg |
+| 2 | run1/imgs/0/filename2_cam0.jpg | run1/imgs/0/filename2_cam1.jpg |
 | ... | ... | ... |
 
 # License
