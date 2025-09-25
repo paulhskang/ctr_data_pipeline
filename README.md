@@ -129,8 +129,8 @@ If you want to reference this project, you can use the following citation:
       year={2025},
       volume={},
       number={},
-      pages={1-7},
+      pages={157-163},
       keywords={},
-      doi={}
+      doi={10.1109/ISMR67322.2025.11025969}
     }
 ```
