@@ -46,7 +46,7 @@ def collect_prediction_outputs(image_data, batched_output, input_prompts):
         print(j)
         mask = output["masks"][0].cpu().detach().numpy()
         score = output["iou_predictions"][0].cpu().detach().numpy()[0]
-        area_ratio = len(np.column_stack(np.where(mask > 0))) / image_pixel_num
+        area_ratio = mask.sum() / image_pixel_num
         prediction_output = PredictionOutput(
                 input_prompts[j],
                 mask=mask,
@@ -71,6 +71,7 @@ class SAMBatchedPredictor:
         sam = build_sam2("configs/sam2.1/sam2.1_hiera_l.yaml", "sam2.1_hiera_large.pt")
         sam.to(device=device)
         self.predictor = SAM2ImagePredictor(sam)
+        self.predictor.model = torch.compile(self.predictor.model)
 
         self.input_prompts = {}
         self.sort_based_on = sort_based_on
@@ -88,7 +89,7 @@ class SAMBatchedPredictor:
             point_labels=point_labels,
             box=box,
             multimask_output=False)
-        area_ratio = len(np.column_stack(np.where(mask > 0))) / image_pixel_num
+        area_ratio = mask.sum() / image_pixel_num
         prediction_output = PredictionOutput(
                 input_prompts,
                 mask=mask,
@@ -104,28 +105,69 @@ class SAMBatchedPredictor:
         image_data.current_mask_idx = 0
 
     def predict_stereo(self, batch_data, left_input_prompts: dict, right_input_prompts: dict):
-        # assert len(left_input_prompts) == len(right_input_prompts)
         batch_size = len(batch_data["frame_id"])
-        stereo_image_datas = []
-        for i in range(batch_size):
-            frame_id = batch_data["frame_id"][i].item()
-            if self.data_saver.check_is_mask_processed(frame_id):
-                continue
-            # only update input prompts if offline masking
-            # self.update_input_prompts(frame_id, left_input_prompts, right_input_prompts)        # should not apply if through UI (offline only)
-            left_image_data = ImageData(batch_data["left_image"][i].cpu().detach().numpy(),
-                                        batch_data["left_image_name"][i],
-                                        batch_data["left_image_path"][i],
-                                        batch_data["frame_id"][i])
-            self.predict_one(left_image_data, left_input_prompts)
-            right_image_data = ImageData(batch_data["right_image"][i].cpu().detach().numpy(),
-                                         batch_data["right_image_name"][i],
-                                         batch_data["right_image_path"][i],
-                                         batch_data["frame_id"][i])
 
-            self.predict_one(right_image_data, right_input_prompts)
+        indices = [i for i in range(batch_size)
+                   if not self.data_saver.check_is_mask_processed(batch_data["frame_id"][i].item())]
+        if not indices:
+            return []
+
+        left_image_datas, right_image_datas, frame_ids, all_images = [], [], [], []
+        for i in indices:
+            left_np  = batch_data["left_image"][i].cpu().detach().numpy()
+            right_np = batch_data["right_image"][i].cpu().detach().numpy()
+            left_image_datas.append(ImageData(left_np,  batch_data["left_image_name"][i],
+                                              batch_data["left_image_path"][i], batch_data["frame_id"][i]))
+            right_image_datas.append(ImageData(right_np, batch_data["right_image_name"][i],
+                                               batch_data["right_image_path"][i], batch_data["frame_id"][i]))
+            frame_ids.append(batch_data["frame_id"][i].item())
+            all_images.append(left_np)
+            all_images.append(right_np)
+
+        n = len(indices)
+        point_coords_batch, point_labels_batch, box_batch = [], [], []
+        for _ in range(n):
+            for prompts in [left_input_prompts, right_input_prompts]:
+                pc = np.array(prompts["point_coords"]) if prompts["point_coords"] != [] else None
+                pl = np.array(prompts["point_labels"]) if prompts["point_labels"] != [] else None
+                bx = np.array(prompts["box"])           if prompts["box"] is not None    else None
+                point_coords_batch.append(pc)
+                point_labels_batch.append(pl)
+                box_batch.append(bx)
+
+        with torch.inference_mode(), torch.autocast("cuda", dtype=torch.float16):
+            self.predictor.set_image_batch(all_images)
+            masks_batch, scores_batch, _ = self.predictor.predict_batch(
+                point_coords_batch=point_coords_batch,
+                point_labels_batch=point_labels_batch,
+                box_batch=box_batch,
+                multimask_output=False)
+
+        stereo_image_datas = []
+        for i in range(n):
+            for image_data, prompts, flat_idx in [
+                (left_image_datas[i],  left_input_prompts,  i * 2),
+                (right_image_datas[i], right_input_prompts, i * 2 + 1),
+            ]:
+                mask  = masks_batch[flat_idx][0]
+                score = scores_batch[flat_idx][0]
+                image_pixel_num = image_data.image.shape[0] * image_data.image.shape[1]
+                area_ratio = mask.sum() / image_pixel_num
+                image_data.prediction_outputs.append(PredictionOutput(
+                    prompts,
+                    mask=mask,
+                    masked_image=apply_mask(image_data.image, mask),
+                    score=score,
+                    area_ratio=area_ratio))
+                if self.sort_based_on == "highest_score":
+                    image_data.prediction_outputs = sorted(image_data.prediction_outputs,
+                                                           key=operator.attrgetter('score'), reverse=True)
+                elif self.sort_based_on == "lowest_area_ratio":
+                    image_data.prediction_outputs = sorted(image_data.prediction_outputs,
+                                                           key=operator.attrgetter('area_ratio'))
+                image_data.current_mask_idx = 0
             stereo_image_datas.append(
-                StereoImageData(frame_id=frame_id, left=left_image_data, right=right_image_data))
+                StereoImageData(frame_id=frame_ids[i], left=left_image_datas[i], right=right_image_datas[i]))
         return stereo_image_datas
 
     # Might still want these, batched prediction
@@ -143,7 +185,7 @@ class SAMBatchedPredictor:
     #                 point_labels=input_prompt["point_labels"],
     #                 box=input_prompt["box"],
     #                 multimask_output=False)
-    #             area_ratio = len(np.column_stack(np.where(mask > 0))) / image_pixel_num
+    #             area_ratio = mask.sum() / image_pixel_num
     #             prediction_output = PredictionOutput(
     #                     input_prompt,
     #                     mask=mask,
