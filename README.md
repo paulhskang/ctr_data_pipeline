@@ -1,13 +1,12 @@
 # Install
-Install SAM,
-https://github.com/facebookresearch/segment-anything
+Install SAM2,
+https://github.com/facebookresearch/sam2
 using their installation instructions with CONDA, and CUDA. Make sure to have a GPU with sufficient memory.
 
-Download the model by putting in your browser: `https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth`, then copy and paste the model in the same folder as main.py. 
+Download the "sam2.1_hiera_large.pt" checkpoint, then copy and paste the model in the same folder as main.py. 
 
 Install dependencies:
 ```bash
-conda activate sam
 pip install opencv-python matplotlib pandas
 ```
 # Usage

@@ -20,8 +20,8 @@ from typing import List
 import sys
 
 sys.path.append("..")
-from segment_anything import sam_model_registry, SamPredictor
-from segment_anything.utils.transforms import ResizeLongestSide
+from sam2.build_sam import build_sam2
+from sam2.sam2_image_predictor import SAM2ImagePredictor
 from ctr_labeller.types import ImageData, PredictionOutput, StereoImageData
 
 def apply_mask(image, mask, random_color=False):
@@ -30,10 +30,8 @@ def apply_mask(image, mask, random_color=False):
     else:
         color = np.array([30, 144, 255],dtype=np.uint8)
     h, w = mask.shape[-2:]
-    mask_image = mask.reshape(h, w, 1) * color.reshape(1, 1, -1)
+    mask_image = (mask.reshape(h, w, 1) * color.reshape(1, 1, -1)).astype(np.uint8)
     return cv2.addWeighted(image, 1.0, mask_image, 0.6, 0)
-
-from segment_anything.utils.transforms import ResizeLongestSide
 
 def prepare_image(image, transform, device):
     np_image = image.cpu().detach().numpy()
@@ -62,8 +60,6 @@ class SAMBatchedPredictor:
         """
         sort_based_on: Valid options are None, highest_score, lowest_area_ratio
         """
-        sam_checkpoint = "sam_vit_h_4b8939.pth"
-        model_type = "vit_h"
         if torch.backends.mps.is_available():
             device = torch.device("mps")
         elif torch.cuda.is_available():
@@ -71,11 +67,12 @@ class SAMBatchedPredictor:
         else:
             device = torch.device("cpu")
         print("Current device is: ", device)
-        sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
+        
+        sam = build_sam2("configs/sam2.1/sam2.1_hiera_l.yaml", "sam2.1_hiera_large.pt")
         sam.to(device=device)
-        self.predictor = SamPredictor(sam)
+        self.predictor = SAM2ImagePredictor(sam)
+
         self.input_prompts = {}
-        self.resize_transform = ResizeLongestSide(sam.image_encoder.img_size)
         self.sort_based_on = sort_based_on
         self.data_saver = data_saver
         self.sam = sam
