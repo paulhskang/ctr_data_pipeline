@@ -15,12 +15,13 @@
 import cv2
 import numpy as np
 import operator
+import os
 import torch
-from typing import List
+from PIL import Image as PILImage
 import sys
 
 sys.path.append("..")
-from sam2.build_sam import build_sam2
+from sam2.build_sam import build_sam2, build_sam2_video_predictor
 from sam2.sam2_image_predictor import SAM2ImagePredictor
 from ctr_labeller.types import ImageData, PredictionOutput, StereoImageData
 
@@ -72,6 +73,9 @@ class SAMBatchedPredictor:
         sam.to(device=device)
         self.predictor = SAM2ImagePredictor(sam)
         self.predictor.model = torch.compile(self.predictor.model)
+
+        self.video_predictor = build_sam2_video_predictor(
+            "configs/sam2.1/sam2.1_hiera_l.yaml", "sam2.1_hiera_large.pt", device=device)
 
         self.input_prompts = {}
         self.sort_based_on = sort_based_on
@@ -169,6 +173,96 @@ class SAMBatchedPredictor:
             stereo_image_datas.append(
                 StereoImageData(frame_id=frame_ids[i], left=left_image_datas[i], right=right_image_datas[i]))
         return stereo_image_datas
+
+    def predict_stereo_video(self, stereo_dataset, left_input_prompts, right_input_prompts,
+                             chunk_size=200):
+        """Process frames in chunks using SAM2 video predictor for temporal tracking.
+        Prompt only the first frame of each chunk; SAM2 propagates across chunk_size frames.
+        Requires JPEG images with integer filenames (e.g. 0001.jpg).
+        """
+        import tempfile, shutil
+        from collections import defaultdict
+
+        lpc = np.array(left_input_prompts["point_coords"])  if left_input_prompts["point_coords"]  != [] else None
+        lpl = np.array(left_input_prompts["point_labels"])  if left_input_prompts["point_labels"]  != [] else None
+        lbx = np.array(left_input_prompts["box"])           if left_input_prompts["box"] is not None else None
+        rpc = np.array(right_input_prompts["point_coords"]) if right_input_prompts["point_coords"] != [] else None
+        rpl = np.array(right_input_prompts["point_labels"]) if right_input_prompts["point_labels"] != [] else None
+        rbx = np.array(right_input_prompts["box"])          if right_input_prompts["box"] is not None else None
+
+        # Group frame_infos by left directory — each folder is a separate video sequence
+        dir_to_frame_infos = defaultdict(list)
+        for fi in stereo_dataset.frame_infos:
+            dir_to_frame_infos[os.path.dirname(fi["left_image_path"])].append(fi)
+
+        for left_dir, frame_infos_in_dir in sorted(dir_to_frame_infos.items()):
+            # Sort frames within this folder by integer filename
+            frame_infos_sorted = sorted(
+                frame_infos_in_dir,
+                key=lambda fi: int(os.path.splitext(fi["left_image_name"])[0]))
+            all_vidxs = list(range(len(frame_infos_sorted)))
+
+            for chunk_start in range(0, len(all_vidxs), chunk_size):
+                chunk_vidxs = all_vidxs[chunk_start:chunk_start + chunk_size]
+                chunk_frame_infos = [frame_infos_sorted[vidx] for vidx in chunk_vidxs]
+                print(f"predict_stereo_video | {left_dir} chunk frames {chunk_vidxs[0]}–{chunk_vidxs[-1]}")
+
+                left_tmp  = tempfile.mkdtemp()
+                right_tmp = tempfile.mkdtemp()
+                try:
+                    for local_idx, frame_info in enumerate(chunk_frame_infos):
+                        os.symlink(frame_info["left_image_path"],
+                                   os.path.join(left_tmp,  f"{local_idx}.jpg"))
+                        os.symlink(frame_info["right_image_path"],
+                                   os.path.join(right_tmp, f"{local_idx}.jpg"))
+
+                    with torch.inference_mode(), torch.autocast("cuda", dtype=torch.float16):
+                        left_state  = self.video_predictor.init_state(left_tmp,  offload_video_to_cpu=True)
+                        right_state = self.video_predictor.init_state(right_tmp, offload_video_to_cpu=True)
+                        self.video_predictor.add_new_points_or_box(
+                            left_state,  frame_idx=0, obj_id=1, points=lpc, labels=lpl, box=lbx)
+                        self.video_predictor.add_new_points_or_box(
+                            right_state, frame_idx=0, obj_id=1, points=rpc, labels=rpl, box=rbx)
+                        left_masks  = {}
+                        right_masks = {}
+                        for local_idx, _, masks in self.video_predictor.propagate_in_video(left_state):
+                            left_masks[local_idx]  = (masks[0] > 0).cpu().numpy()
+                        for local_idx, _, masks in self.video_predictor.propagate_in_video(right_state):
+                            right_masks[local_idx] = (masks[0] > 0).cpu().numpy()
+                finally:
+                    shutil.rmtree(left_tmp)
+                    shutil.rmtree(right_tmp)
+
+                for local_idx, frame_info in enumerate(chunk_frame_infos):
+                    frame_id = frame_info["frame_id"]
+                    if self.data_saver.check_is_mask_processed(frame_id):
+                        continue
+                    left_np   = np.array(PILImage.open(frame_info["left_image_path"]))
+                    right_np  = np.array(PILImage.open(frame_info["right_image_path"]))
+                    left_mask  = left_masks[local_idx]
+                    right_mask = right_masks[local_idx]
+
+                    left_image_data = ImageData(left_np, frame_info["left_image_name"],
+                                                frame_info["left_image_path"], frame_info["frame_id"])
+                    left_image_data.prediction_outputs.append(PredictionOutput(
+                        left_input_prompts,
+                        mask=left_mask,
+                        masked_image=apply_mask(left_np, left_mask),
+                        score=0.0,
+                        area_ratio=left_mask.sum() / (left_np.shape[0] * left_np.shape[1])))
+                    left_image_data.current_mask_idx = 0
+
+                    right_image_data = ImageData(right_np, frame_info["right_image_name"],
+                                                 frame_info["right_image_path"], frame_info["frame_id"])
+                    right_image_data.prediction_outputs.append(PredictionOutput(
+                        right_input_prompts,
+                        mask=right_mask,
+                        masked_image=apply_mask(right_np, right_mask),
+                        score=0.0,
+                        area_ratio=right_mask.sum() / (right_np.shape[0] * right_np.shape[1])))
+                    right_image_data.current_mask_idx = 0
+
+                    yield StereoImageData(frame_id=frame_id, left=left_image_data, right=right_image_data)
 
     # Might still want these, batched prediction
 

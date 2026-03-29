@@ -13,7 +13,6 @@
 #    under the License.
 
 import pandas as pd
-import torch
 import threading
 import argparse
 
@@ -26,36 +25,50 @@ from ctr_labeller.ui.controllers import ImageSelectorConfig, ImageSelector, Ster
 from ctr_labeller.types import StereoImageDataQueue
 
 class SAMBatchedPredictorThread(threading.Thread):
-    def __init__(self, sam_predictor: SAMBatchedPredictor, stereo_image_queue, dataloader, 
-                 config, left_input_prompts, right_input_prompts):
+    def __init__(self, sam_predictor: SAMBatchedPredictor, stereo_image_queue,
+                 stereo_dataset, left_input_prompts, right_input_prompts, use_video, grid_num):
         super(SAMBatchedPredictorThread, self).__init__()
         self.sam_predictor = sam_predictor
         self.stereo_image_queue = stereo_image_queue
-        self.dataloader = dataloader
-        self.config = config
+        self.stereo_dataset = stereo_dataset
         self.left_input_prompts = left_input_prompts
         self.right_input_prompts = right_input_prompts
+        self.use_video = use_video
         self.exit_flag = False
+        self.grid_num = grid_num
 
         self.start()
 
     def run(self):
-        num = 0
-        batch_len = len(self.dataloader)
-        print("SAMBatchedPredictorThread | batch_len: ", batch_len)
-        batch_idx = 0
-        for batch in self.dataloader:
-            if self.exit_flag:
-                print ("SAMBatchedPredictorThread | Exiting thread")
-                return
-            print("SAMBatchedPredictorThread | predicting frame_ids: {} ".format(batch["frame_id"].cpu().detach().numpy()))
-            stereo_image_datas = self.sam_predictor.predict_stereo(batch, self.left_input_prompts, self.right_input_prompts)
-            self.stereo_image_queue.wait_add_images(stereo_image_datas)
-            batch_idx += 1
-            num = num + len(batch)
-            print("SAMBatchedPredictorThread | finished frame_ids: {} ".format(batch["frame_id"].cpu().detach().numpy()))
+        print("SAMBatchedPredictorThread | num frames: ", len(self.stereo_dataset))
+        if self.use_video:
+            results = self.sam_predictor.predict_stereo_video(
+                self.stereo_dataset, self.left_input_prompts, self.right_input_prompts)
+        else:
+            import torch
+            loader = torch.utils.data.DataLoader(self.stereo_dataset, batch_size=self.grid_num,
+                                                 pin_memory=True, num_workers=4, shuffle=False)
+            num = 0
+            batch_len = len(loader)
+            print("SAMBatchedPredictorThread | batch_len: ", batch_len)
+            batch_idx = 0
+            for batch in loader:
+                if self.exit_flag:
+                    print ("SAMBatchedPredictorThread | Exiting thread")
+                    return
+                print("SAMBatchedPredictorThread | predicting frame_ids: {} ".format(batch["frame_id"].cpu().detach().numpy()))
+                stereo_image_datas = self.sam_predictor.predict_stereo(batch, self.left_input_prompts, self.right_input_prompts)
+                self.stereo_image_queue.wait_add_images(stereo_image_datas)
+                batch_idx += 1
+                num = num + len(batch)
+                print("SAMBatchedPredictorThread | finished frame_ids: {} ".format(batch["frame_id"].cpu().detach().numpy()))
 
-        print ("SAMBatchedPredictorThread | ------ BATCH IS DONE ------")
+        for stereo_image_data in results:
+            if self.exit_flag:
+                print("SAMBatchedPredictorThread | Exiting thread")
+                return
+            self.stereo_image_queue.wait_add_images([stereo_image_data])
+        print("SAMBatchedPredictorThread | ------ BATCH IS DONE ------")
 
 def arg_parser():
     ''' load CLI arguments '''
@@ -70,6 +83,7 @@ def arg_parser():
     parser.add_argument("--save-image-appended-with-masks", help="Save images with mask overlays", type=lambda x: x.lower() == 'true', default=False)
     parser.add_argument("--sort-based-on",                  help="Criteria on how masks are selected", type=str, default="None")
     parser.add_argument("--max-size-to-add",                help="Number of images to load at one time for processing", type=int, default=40)
+    parser.add_argument("--use-video",                      help="Use SAM2 video predictor (temporal tracking) instead of per-frame prediction", type=lambda x: x.lower() == 'true', default=False)
 
     args = parser.parse_args()
     return args
@@ -110,12 +124,10 @@ def main():
 
     # SAM Create Masks
     grid_num = app_config.selection_grid_size[0] * app_config.selection_grid_size[1]
-    loader = torch.utils.data.DataLoader(stereo_image_dataset, batch_size=grid_num,
-                                         pin_memory=True, num_workers=4, shuffle=False)
     stereo_image_queue = StereoImageDataQueue(max_size_to_add=config.max_size_to_add)
     predictor_thread = SAMBatchedPredictorThread(
         sam_predictor, stereo_image_queue,
-        loader, config, left_input_prompts, right_input_prompts)
+        stereo_image_dataset, left_input_prompts, right_input_prompts, config.use_video, grid_num)
 
     try:
         if config.use_gui:
@@ -151,7 +163,8 @@ def main():
                 selector.left_image_selector.state.current_image_data.is_save_mask = True
                 selector.right_image_selector.state.current_image_data.is_save_mask = True
                 # save mask
-                print("Main | Saving frame_id: ", selector.current_frame_id)
+                if selector.current_frame_id % 50 == 0:
+                    print("Main | Saving frame_id: ", selector.current_frame_id)
                 datasaver.save_current_stereo_masks(selector.current_frame_id,
                                                     selector.left_image_selector.state.current_image_data, 
                                                     selector.right_image_selector.state.current_image_data)
