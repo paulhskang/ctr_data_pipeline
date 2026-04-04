@@ -117,8 +117,6 @@ One single reference csv file should hold all the relative paths to each stereoi
 | 2 | run1/imgs/0/filename2_cam0.jpg | run1/imgs/0/filename2_cam1.jpg |
 | ... | ... | ... |
 
-If using SAM2's video predictor with video frames, ensure the filenames and reference.csv follow their convention, e.g., filenames must be integers: 1.jpg, ..., 1000.jpg.
-
 # License
 The model is licensed under the [Apache 2.0 license](https://github.com/paulhskang/ctr_data_pipeline/blob/main/LICENSE.txt).
 

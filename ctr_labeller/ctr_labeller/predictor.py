@@ -196,10 +196,8 @@ class SAMBatchedPredictor:
             dir_to_frame_infos[os.path.dirname(fi["left_image_path"])].append(fi)
 
         for left_dir, frame_infos_in_dir in sorted(dir_to_frame_infos.items()):
-            # Sort frames within this folder by integer filename
-            frame_infos_sorted = sorted(
-                frame_infos_in_dir,
-                key=lambda fi: int(os.path.splitext(fi["left_image_name"])[0]))
+            # Preserve original order from reference.csv
+            frame_infos_sorted = frame_infos_in_dir
             all_vidxs = list(range(len(frame_infos_sorted)))
 
             for chunk_start in range(0, len(all_vidxs), chunk_size):
