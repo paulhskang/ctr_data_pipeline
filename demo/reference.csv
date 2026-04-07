@@ -1,0 +1,7 @@
+frame_id,left_image_path,right_image_path
+0,imgs/cam0_0.jpg,imgs/cam1_0.jpg
+1,imgs/cam0_1.jpg,imgs/cam1_1.jpg
+2,imgs/cam0_2.jpg,imgs/cam1_2.jpg
+3,imgs/cam0_3.jpg,imgs/cam1_3.jpg
+4,imgs/cam0_4.jpg,imgs/cam1_4.jpg
+5,imgs/cam0_5.jpg,imgs/cam1_5.jpg
