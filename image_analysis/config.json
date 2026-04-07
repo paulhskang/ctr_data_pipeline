@@ -1,0 +1,15 @@
+{
+    "reference_file_folder": "",
+    "stereo_params_path": "",
+    "reconstruction_config":{
+        "num_pts_per_spline": 150
+    },
+    "apriltag_config": {
+        "tag_family": "tag36h11",
+        "tag_size": 20,
+        "tag_transform": [[1, 0, 0, 0],
+                          [0, 1, 0, 0],
+                          [0, 0, 1, 0],
+                          [0, 0, 0, 1]]
+    }
+}
