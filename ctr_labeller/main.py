@@ -44,6 +44,11 @@ class SAMBatchedPredictorThread(threading.Thread):
         if self.use_video:
             results = self.sam_predictor.predict_stereo_video(
                 self.stereo_dataset, self.left_input_prompts, self.right_input_prompts)
+            for stereo_image_data in results:
+                if self.exit_flag:
+                    print("SAMBatchedPredictorThread | Exiting thread")
+                    return
+                self.stereo_image_queue.wait_add_images([stereo_image_data])
         else:
             import torch
             loader = torch.utils.data.DataLoader(self.stereo_dataset, batch_size=self.grid_num,
@@ -62,12 +67,6 @@ class SAMBatchedPredictorThread(threading.Thread):
                 batch_idx += 1
                 num = num + len(batch)
                 print("SAMBatchedPredictorThread | finished frame_ids: {} ".format(batch["frame_id"].cpu().detach().numpy()))
-
-        for stereo_image_data in results:
-            if self.exit_flag:
-                print("SAMBatchedPredictorThread | Exiting thread")
-                return
-            self.stereo_image_queue.wait_add_images([stereo_image_data])
         print("SAMBatchedPredictorThread | ------ BATCH IS DONE ------")
 
 def arg_parser():

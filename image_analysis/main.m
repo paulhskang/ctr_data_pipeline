@@ -30,16 +30,45 @@ apriltag_flag = true;
 if apriltag_flag
     left_first_image_path = strcat( config_file.reference_file_folder, reference_file.left_image_path{1} );
     left_first_image = imread(left_first_image_path);
+    right_first_image_path = strcat( config_file.reference_file_folder, reference_file.right_image_path{1} );
+    right_first_image = imread(right_first_image_path);
+
+    % detect tag in both images (each with its own intrinsics)
     [left_tag_id, left_tag_loc, left_tag_pose] = readAprilTag(left_first_image, ...
                                                                 config_file.apriltag_config.tag_family, ...
                                                                     stereo_params.CameraParameters1.Intrinsics, ...
                                                                         config_file.apriltag_config.tag_size);
-    right_first_image_path = strcat( config_file.reference_file_folder, reference_file.right_image_path{1} );
-    right_first_image = imread(right_first_image_path);
-    abs_tag_transform = left_tag_pose.A * config_file.apriltag_config.tag_transform;
-    % get pixel space points for origin
+    [right_tag_id, right_tag_loc, right_tag_pose] = readAprilTag(right_first_image, ...
+                                                                config_file.apriltag_config.tag_family, ...
+                                                                    stereo_params.CameraParameters2.Intrinsics, ...
+                                                                        config_file.apriltag_config.tag_size);
+
+    % triangulate the 4 tag corners stereoscopically — avoids single-view PnP depth noise
+    left_corners  = left_tag_loc(:,:,1);
+    right_corners = right_tag_loc(:,:,1);
+    tag_corners_3d = triangulate(left_corners, right_corners, stereo_params);
+    tag_center_3d = mean(tag_corners_3d, 1);
+
+    % diagnostics: disagreement between single-view PnP origins and triangulated center
+    % p_left_pnp  = left_tag_pose.A(1:3, 4)';
+    % p_right_pnp_in_cam1 = (stereo_params.PoseCamera2.A * [right_tag_pose.A(1:3,4); 1])';
+
+    % use stereo-triangulated position with left-view rotation
+    abs_tag_transform = left_tag_pose.A;
+    abs_tag_transform(1:3, 4) = tag_center_3d';
+    abs_tag_transform = abs_tag_transform * config_file.apriltag_config.tag_transform;
+
+    % project origin into both images with distortion
     origin_left_image_point = world2img(abs_tag_transform(1:3, 4)', rigidtform3d, stereo_params.CameraParameters1.Intrinsics);
     origin_right_image_point = world2img(abs_tag_transform(1:3, 4)', stereo_params.PoseCamera2, stereo_params.CameraParameters2.Intrinsics);
+
+    % plot to verify
+    figure; imshow(left_first_image); hold on;
+    plot_apriltag(left_first_image, left_tag_id, left_tag_loc, left_tag_pose, config_file.apriltag_config.tag_size, stereo_params.CameraParameters1.Intrinsics);
+    plot(origin_left_image_point(1), origin_left_image_point(2), 'rx', 'MarkerSize', 10, 'LineWidth', 2);
+    figure; imshow(right_first_image); hold on;
+    plot_apriltag(right_first_image, right_tag_id, right_tag_loc, right_tag_pose, config_file.apriltag_config.tag_size, stereo_params.CameraParameters2.Intrinsics);
+    plot(origin_right_image_point(1), origin_right_image_point(2), 'rx', 'MarkerSize', 10, 'LineWidth', 2);
 else
     % if not using apriltags, use identity transform as the tube origin (point is closer to the tube base)
     abs_tag_transform = eye(4);
@@ -151,19 +180,16 @@ for i = 1:num_data_points
             right_image_cropped = right_image_marked(ylim_crop(1):ylim_crop(2), 500:1500, :);
             combined = [left_image_cropped, right_image_cropped];
             % get image filename
-            split_path = split(reference_file.left_image_path{i}, "_");
-            % split_path2 = split(split_path{1}, "/");
-            % batch_id = split_path2{2};
-            image_id = split_path{3};   % from cam hardware
-            batch_id = num2str( floor((i-1) / batch_size) );
+            mask_img_path = replace(reference_file.left_mask_path{i}, '/masks/', '/imgs_and_masks/');
+            mask_img_path = replace(mask_img_path, 'mask_', 'img_and_mask_');
+            mask_img_path = strcat(config_file.reference_file_folder, mask_img_path);
             % create relevant folders
-            batch_folder = strcat(config_file.reference_file_folder, '/imgs_and_masks/', batch_id, '/');
-            if ~exist(batch_folder, 'dir')
-                mkdir(batch_folder);
+            [img_mask_parent_folder, ~, ~] = fileparts(mask_img_path);
+            if ~exist(img_mask_parent_folder, 'dir')
+                mkdir(img_mask_parent_folder);
             end
-            outfile = strcat(batch_folder, 'img_and_mask_', image_id, "_", num2str(reference_file.frame_id(i) + 1), '.jpg');
-            reference_file.img_and_mask_path{i} = char(outfile);
-            imwrite(combined, outfile);
+            reference_file.img_and_mask_path{i} = char(mask_img_path);
+            imwrite(combined, mask_img_path);
         end
 
         %% save to reference file
